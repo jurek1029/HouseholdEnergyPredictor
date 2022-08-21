@@ -1,0 +1,11 @@
+Data/
+PrepedData/
+Models/
+LPG10.8.0/
+Graph/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Jupyter Notebook
+.ipynb_checkpoints
