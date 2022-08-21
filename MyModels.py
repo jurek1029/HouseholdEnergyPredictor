@@ -5,6 +5,10 @@ import tensorflow as tf
 from tensorflow import keras
 from matplotlib import pyplot as plt
 
+from scipy import stats
+from scipy.special import inv_boxcox
+import seaborn as sns
+
 from MyTransformers import *
 
 mode_path = "Models/"
@@ -30,24 +34,27 @@ def plot_series(series, y=None, y_pred=None, _n=n, x_label="$t$", y_label="$x(t)
         plt.xlabel(x_label, fontsize=16)
     if y_label:
         plt.ylabel(y_label, fontsize=16, rotation=0)
-    plt.hlines(0, 0, 100, linewidth=1)
+    #plt.hlines(0, 0, 100, linewidth=1)
     #plt.axis([0, _n + 1, -1, 1])
     if legend and (y or y_pred):
         plt.legend(fontsize=14, loc="upper left")
 
 def plot_multiple_forecasts(X, Y, Y_pred, _n=n, toAgregate=False):
-    n_steps = X.shape[1]
-    ahead = Y.shape[1]
-    if toAgregate:
-        X = AgregateDiffs(X).reshape(-1,n_steps,1)
-        Y = AgregateDiffs(Y,X[:,-1]).reshape(-1,ahead,1)
-        Y_pred = AgregateDiffs(Y_pred,X[:,-1]).reshape(-1,ahead,1)
+    n_steps = len(X)
+    ahead = len(Y)
+    # if toAgregate:
+    #     X = AgregateDiffs(X).reshape(-1,n_steps,1)
+    #     Y = AgregateDiffs(Y,X[:,-1]).reshape(-1,ahead,1)
+    #     Y_pred = AgregateDiffs(Y_pred,X[:,-1]).reshape(-1,ahead,1)
 
-    plot_series(X[0, :, 0],_n=n)
-    plt.plot(np.arange(n_steps, n_steps + ahead), Y[0, :, 0], "bo-", label="Actual")
-    plt.plot(np.arange(n_steps, n_steps + ahead), Y_pred[0, :, 0], "rx-", label="Forecast", markersize=10)
+    # plot_series(X[0, :, 0],_n=n)
+    # plt.plot(np.arange(n_steps, n_steps + ahead), Y[0, :, 0], "bo-", label="Actual")
+    # plt.plot(np.arange(n_steps, n_steps + ahead), Y_pred[0, :, 0], "rx-", label="Forecast", markersize=10)
+    plot_series(X,_n=n)
+    plt.plot(np.arange(n_steps, n_steps + ahead), Y, "bo-", label="Actual")
+    plt.plot(np.arange(n_steps, n_steps + ahead), Y_pred, "rx-", label="Forecast", markersize=10)
 
-    plt.axis([0, n_steps + ahead, X.min(), X.max()])
+    #plt.axis([0, n_steps + ahead, X.min(), X.max()])
     plt.legend(fontsize=14)
 
 def BatchWithNLen(n,pred_n,time_series, other_data=[],TVT_slit=(0.7,0.9)):
@@ -114,39 +121,53 @@ def OverlapingBatchWithNLen(n,pred_n,time_series, other_data=[],TVT_slit=(0.7,0.
     return (X_train, y_train), (X_valid, y_valid) , (X_test, y_test)
     
 class MyLoader:
-    def __init__(self,files,batchSize,timeSeriesLables, otherDataLabels,splitFun, sumInN = 1, asDiff = False, asSum = False, TVT_split=(0.7,0.9),
-     pred_n = 10,lable="default"):
+    def __init__(self,files,batchSize,timeSeriesLables, otherDataLabels,splitFun, sumInN = 1, asDiff = False, asSum = False, asBoxcox=False,
+                TVT_split=(0.7,0.9),diffLags=[1],pred_n = 10,lable="default"):
         self.batchSize = batchSize
         self.timeSeriesLables = timeSeriesLables
         self.otherDataLabels = otherDataLabels
         self.sumInN = sumInN
         self.asDiff = asDiff
         self.asSum = asSum
+        self.asBoxcox = asBoxcox
         self.files = files
         self.TVT_split = TVT_split
+        self.diffLags = diffLags
         self.pred_n = pred_n
         self.splitFun = splitFun
         self.lable = lable
 
-    def loadDataTimeSeries(files, features, batchSize,sum_n = 1, asSum=True, asDiff=True):
+    def loadDataTimeSeries(self, files):
         tmpArr = [[]]*len(files)
-        dataOut = np.empty((0,len(features)))
+        dataOut = np.empty((0,len(self.timeSeriesLables)))
         for i,file in enumerate(files):
             progres_bar(i + 1,len(files))
             data = pd.read_feather(file)
-            data = data[features].values
-            if asSum:
-                data = data[:len(data) - (len(data) % sum_n)]
-                if len(features) > 1:
-                    data = data.reshape(-1,sum_n,len(features))     
+            data = data[self.timeSeriesLables].values
+            if self.asSum:
+                data = data[:len(data) - (len(data) % self.sumInN)]
+                if len(self.timeSeriesLables) > 1:
+                    data = data.reshape(-1,self.sumInN,len(self.timeSeriesLables))     
                 else:
-                    data = data.reshape(-1,sum_n)
+                    data = data.reshape(-1,self.sumInN)
                 data = data.sum(axis=1,keepdims=True)
-            if asDiff:
-                data = np.diff(data,axis=0)
-                data = data[1:]
 
-            tmpArr[i] = data[:len(data) - (len(data) % batchSize)]
+            if self.asBoxcox:
+                data , self.boxcoxLambda = stats.boxcox(data.flatten())
+                data = data.reshape(-1,1)
+
+            if self.asDiff:
+                self.diffInitVals = []
+                self.diffYInitVals = []
+                for lag in self.diffLags:
+                    tmp = data[:len(data) - len(data)%self.batchSize].reshape(-1,self.batchSize)
+                    self.diffInitVals.append (tmp[:,-lag:].reshape(-1,lag))
+                    self.diffYInitVals.append(tmp[1:,self.batchSize-self.pred_n -lag:self.batchSize-self.pred_n].reshape(-1,lag))
+                    data = data[lag:] - data[:-lag]
+                    data = data[self.batchSize - lag:]
+                #data = data[1:]
+
+            tmpArr[i] = data[:len(data) - (len(data) % self.batchSize)]
         if len(files) > 0:    
             dataOut = np.row_stack(tmpArr)
         else:
@@ -168,18 +189,59 @@ class MyLoader:
         return dataOut.astype('f4')
 
     def load(self):
-        self.timeSeries = MyLoader.loadDataTimeSeries(self.files, self.timeSeriesLables, self.batchSize, self.sumInN, self.asSum, self.asDiff)
+        self.timeSeries = self.loadDataTimeSeries(self.files)
         if self.hasOther():
             self.otherData = MyLoader.loadDataOther(self.files, self.otherDataLabels, self.batchSize)
             (self.XTrain, self.YTrain, self.XOtherTrain), (self.XValid, self.YValid, self.XOtherValid), (self.XTest, self.YTest, self.XOtherTest) = self.splitFun(self.batchSize,self.pred_n,self.timeSeries, self.otherData, self.TVT_split)
         else:
             (self.XTrain, self.YTrain), (self.XValid, self.YValid), (self.XTest, self.YTest) = self.splitFun(self.batchSize,self.pred_n,self.timeSeries, [], self.TVT_split)
+        # if self.asDiff:
+        #     self.diffInitVals = []
+        #     for i,batch in enumerate(self.XTest):
+        #         tmpLags = []
+        #         for lag in self.diffLags:
+        #             tmpLags.append(batch[:lag].flatten())
+        #             self.XTest[i] = batch[lag:] - batch[:-lag]
+        #         self.diffInitVals.append(tmpLags)
+        #     self.diffYInitVals = []
+        #     for i,batch in enumerate(self.YTest):
+        #         tmpLags = []
+        #         for lag in self.diffLags:
+        #             tmpLags.append(batch[:lag].flatten())
+        #             self.YTest[i] = batch[lag:] - batch[:-lag]
+        #         self.diffYInitVals.append(tmpLags)
+
 
     def hasOther(self):
         return True if self.otherDataLabels else False
     
     def setArgs(self,args):
         self.args = args
+    
+    def diffInvers(self,arr,isXInitVals=True, batchNum = 0):
+        if isXInitVals: InitVals = self.diffInitVals
+        else: InitVals = self.diffYInitVals
+        # print(batchNum)
+        # print("initvals shape:",len(InitVals), InitVals[0].shape)
+        # print("diflag:",self.diffLags)
+        # cumLag = 0
+        # if isXInitVals:
+        #     self.diffYInitVals = []
+        j = 0
+        for k,lag in reversed(list(enumerate(self.diffLags))):
+            cc = np.empty(len(arr)+lag)
+            # print("lag:",lag)
+            # print(k, InitVals[k][batchNum]) 
+            for i in range(lag): 
+                # print(k,i, InitVals[k][batchNum][i]) 
+                cc[i::lag] = np.cumsum(np.concatenate([[InitVals[k][batchNum+j][i]],arr[i::lag]]))  
+            arr = cc[lag:]
+            j += 1
+            # if isXInitVals:
+            #     self.diffYInitVals.append(cc[-lag :])
+            #     # self.diffYInitVals.append(cc[-lag - cumLag : len(cc)-cumLag])
+            #     #cumLag += lag
+        return arr
 
 class MyModel:
     _model = None
@@ -241,8 +303,7 @@ class MyModel:
         validation_data=self.validData,callbacks=callbacks,**kwargs))
         print("Done Fiting.")
         self._epoch += epochs
-    
-
+      
     def test(self,plotsCount=5,batchStart=1,random=False):
         batchs = range(batchStart,batchStart + plotsCount)
         if random:
@@ -258,15 +319,34 @@ class MyModel:
 
             Y_new = self.testData[1][batch:batch+1]
             if self.loader.splitFun == OverlapingBatchWithNLen:
-                Y_pred = self.model().predict(X_new)[:, -self.loader.pred_n:]
-                Y_new = Y_new[:, -self.loader.pred_n:]
+                # Y_pred = self.model().predict(X_new)[:, -self.loader.pred_n:]
+                # Y_new = Y_new[:, -self.loader.pred_n:]
+                Y_pred = self.model().predict(X_new)[0, -1,:]
+                Y_new = Y_new[0, -1,:]
             elif self.loader.splitFun == BatchWithNLen:
                 Y_pred = self.model().predict(X_new).reshape(1,self.loader.pred_n,1)
             else: print("what")
+
             if self.loader.hasOther():
-                plot_multiple_forecasts(X_new[0], Y_new, Y_pred,_n=self.batchSize, toAgregate=self.loader.asDiff)
+                X = X_new[0]
             else:
-                plot_multiple_forecasts(X_new, Y_new, Y_pred,_n=self.batchSize, toAgregate=self.loader.asDiff)
+                X = X_new
+            
+            if self.loader.asBoxcox:
+                X = inv_boxcox(X,self.loader.boxcoxLambda)
+                Y_new = inv_boxcox(Y_new,self.loader.boxcoxLambda)
+                Y_pred = inv_boxcox(Y_pred,self.loader.boxcoxLambda)
+            
+            X = X[0,:,0]
+            #Y_new = Y_new[0,:,0]
+           # Y_pred = Y_pred[0,:,0]
+           # print("plot shapes:",X.shape,Y_new.shape,Y_pred.shape)
+            if self.loader.asDiff:
+                X = self.loader.diffInvers(X,True,batch + len(self.loader.XTrain) + len(self.loader.XValid))
+                Y_new = self.loader.diffInvers(Y_new,False,batch + len(self.loader.XTrain) + len(self.loader.XValid))
+                Y_pred = self.loader.diffInvers(Y_pred,False,batch + len(self.loader.XTrain) + len(self.loader.XValid))
+
+            plot_multiple_forecasts(X, Y_new, Y_pred,_n=self.batchSize)
             plt.figure()
 
     def save(self):
@@ -275,7 +355,10 @@ class MyModel:
     def testResult(self, show=False):
         l = len(self.testData[1])
         l_pSum = np.zeros(l); l_ySum = np.zeros(l); l_diff = np.zeros(l); l_prec = np.zeros(l); l_mse = np.zeros(l)
-        l_rmspe = np.zeros(l); l_mape = np.zeros(l); l_Y = np.zeros((l,self.loader.pred_n)); l_pred = np.zeros((l,self.loader.pred_n))
+        l_rmspe = np.zeros(l); l_mape = np.zeros(l)
+        #pSize = self.loader.pred_n + (0 if not self.loader.asDiff else np.sum(self.loader.diffLags)) 
+        pSize = self.loader.pred_n
+        l_Y = np.zeros((l,pSize)); l_pred = np.zeros((l,pSize))
         for j in range(l):
             if self.loader.hasOther():
                 X = [[]]*len(self.testData[0])
@@ -286,7 +369,7 @@ class MyModel:
             Y = self.testData[1][j:j+1]
 
             if self.loader.splitFun == OverlapingBatchWithNLen:
-                pred = self.model().predict(X)[:, -1:].reshape(self.loader.pred_n)
+                pred = self.model().predict(X)[0, -1,:]#.reshape(self.loader.pred_n)
                 Y = Y[-1,-1]
             elif self.loader.splitFun == BatchWithNLen:
                 pred = self.model().predict(X).reshape(self.loader.pred_n)
@@ -295,8 +378,12 @@ class MyModel:
                 print("what")
                 print(self.loader.splitFun,OverlapingBatchWithNLen,BatchWithNLen)
             if self.loader.asDiff:
-                pred = pred.cumsum()
-                Y = Y.cumsum()
+                #X = self.loader.diffInvers(X[0,:,0],True,j + len(self.loader.XTrain) + len(self.loader.XValid))
+                pred = self.loader.diffInvers(pred,False,j + len(self.loader.XTrain) + len(self.loader.XValid))
+                Y = self.loader.diffInvers(Y,False,j + len(self.loader.XTrain) + len(self.loader.XValid))
+            if self.loader.asBoxcox:
+                pred = inv_boxcox(pred,self.loader.boxcoxLambda)
+                Y = inv_boxcox(Y,self.loader.boxcoxLambda)
             l_pSum[j] = pred.sum()
             l_ySum[j] = Y.sum()
             l_diff[j] = l_ySum[j] - l_pSum[j]
