@@ -40,8 +40,8 @@ namespace {
   //int inference_count = 0;
 
   // constexpr int kTensorArenaSize = 49016;
-  // constexpr int kTensorArenaSize = 16000;
-  constexpr int kTensorArenaSize = 50000;
+   constexpr int kTensorArenaSize = 16000;
+  //constexpr int kTensorArenaSize = 50000;
   uint8_t tensor_arena[kTensorArenaSize];
 }  // namespace
 
@@ -89,8 +89,8 @@ void setup() {
   // for(int i = 0; i < 40*4; i ++){
   //   inputData[i] = input->params.zero_point;
   // }
-  for(int i = 0; i < 40*4*2; i ++){
-    // input->data.int8[i] = 1.0 / input->params.scale + input->params.zero_point;
+  for(int i = 0; i < 40*4; i ++){
+     input->data.int8[i] = 1.0 / input->params.scale + input->params.zero_point;
      //input->data.f[i] = float(1.);
   }
   //printf("x: %d, %d \n", input->data.int8[0], input->data.int8[1]);
@@ -109,8 +109,8 @@ void setup() {
   }
   printf("output: zero point: %d, scale: %f \n", output->params.zero_point, output->params.scale);
   for(int i = 0; i < 16; i++){
-     //float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
-    float f = output->data.f[i];
+     float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
+    //float f = output->data.f[i];
     printf("%f, \t",f);
     if((i-3) % 4 == 0) printf("\n");
   }
@@ -123,8 +123,8 @@ void setup() {
 void loop() {
   vTaskDelay(1000 / portTICK_PERIOD_MS);
   for(int i = 0; i < 40*4; i ++){
-     //input->data.int8[i] = v / input->params.scale + input->params.zero_point;
-     input->data.f[i] = float(v);
+     input->data.int8[i] = v / input->params.scale + input->params.zero_point;
+     //input->data.f[i] = float(v);
   }
 
   TfLiteStatus invoke_status = interpreter->Invoke();
@@ -135,8 +135,8 @@ void loop() {
 
   output = interpreter->output(0);
   for(int i = 0; i < 16; i++){
-     //float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
-    float f = output->data.f[i];
+     float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
+    //float f = output->data.f[i];
     printf("%f, \t",f);
     if((i-3) % 4 == 0) printf("\n");
   }

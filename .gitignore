@@ -4,6 +4,8 @@ Models/
 LPG10.8.0/
 Graph/
 
+**/build/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
