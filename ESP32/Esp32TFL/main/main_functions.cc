@@ -122,29 +122,33 @@ void setup() {
 
 void loop() {
   vTaskDelay(1000 / portTICK_PERIOD_MS);
-  for(int i = 0; i < 40*4; i ++){
-     input->data.int8[i] = v / input->params.scale + input->params.zero_point;
-     //input->data.f[i] = float(v);
-  }
+  if (v < 5){
+    for(int i = 0; i < 40*4; i ++){
+      input->data.int8[i] = v / input->params.scale + input->params.zero_point;
+      //input->data.f[i] = float(v);
+    }
 
-  TfLiteStatus invoke_status = interpreter->Invoke();
-  if (invoke_status != kTfLiteOk) {
-    TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
-    return;
-  }
+    TfLiteStatus invoke_status = interpreter->Invoke();
+    if (invoke_status != kTfLiteOk) {
+      TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
+      return;
+    }
 
-  output = interpreter->output(0);
-  for(int i = 0; i < 16; i++){
-     float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
-    //float f = output->data.f[i];
-    printf("%f, \t",f);
-    if((i-3) % 4 == 0) printf("\n");
-  }
+    output = interpreter->output(0);
+    printf("v: %f \n", v);
+    for(int i = 0; i < 16; i++){
+      float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
+      //float f = output->data.f[i];
+      printf("%f, \t",f);
+      if((i-3) % 4 == 0) printf("\n");
+    }
+    printf("\n");
 
-  // for(int i = 0; i < 16; i++){
-  //    printf("%d, \t",output->data.int8[i]);
-  // }
-  v ++;
+    // for(int i = 0; i < 16; i++){
+    //    printf("%d, \t",output->data.int8[i]);
+    // }
+    v ++;
+  }
   // //int8_t data[1][40][4];
 
   // // for ( int i = 0; i < 40; i++){
