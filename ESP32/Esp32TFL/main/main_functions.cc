@@ -90,7 +90,7 @@ void setup() {
   //   inputData[i] = input->params.zero_point;
   // }
   for(int i = 0; i < 40*4; i ++){
-     input->data.int8[i] = 1.0 / input->params.scale + input->params.zero_point;
+     input->data.int8[i] = test0[i] / input->params.scale + input->params.zero_point;
      //input->data.f[i] = float(1.);
   }
   //printf("x: %d, %d \n", input->data.int8[0], input->data.int8[1]);

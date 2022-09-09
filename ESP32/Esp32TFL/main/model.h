@@ -28,4 +28,6 @@ limitations under the License.
 extern const unsigned char g_model[];
 extern const int g_model_len;
 
+extern const float test0[];
+
 #endif  // TENSORFLOW_LITE_MICRO_EXAMPLES_HELLO_WORLD_MODEL_H_
