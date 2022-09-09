@@ -21,6 +21,9 @@ Dane :
 
 -polynomial
 
+** WAve net model jest na stridach nie na dialcji 
+** LSTM tylko unrolowane dziłają co zajmuje mnustwo pamieci 
+
 avg:
 	- godzinne
 		* pogodowa wartości: himi, aparent temp, sunny or cloudy

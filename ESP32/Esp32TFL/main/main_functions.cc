@@ -40,8 +40,8 @@ namespace {
   //int inference_count = 0;
 
   // constexpr int kTensorArenaSize = 49016;
-   constexpr int kTensorArenaSize = 16000;
-  //constexpr int kTensorArenaSize = 50000;
+  // constexpr int kTensorArenaSize = 16000;
+  constexpr int kTensorArenaSize = 8000;
   uint8_t tensor_arena[kTensorArenaSize];
 }  // namespace
 
@@ -121,7 +121,7 @@ void setup() {
 }
 
 void loop() {
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  
   if (v < 5){
     for(int i = 0; i < 40*4; i ++){
       input->data.int8[i] = v / input->params.scale + input->params.zero_point;
@@ -148,6 +148,9 @@ void loop() {
     //    printf("%d, \t",output->data.int8[i]);
     // }
     v ++;
+  }
+  else{
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
   // //int8_t data[1][40][4];
 
