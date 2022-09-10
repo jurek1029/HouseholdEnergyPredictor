@@ -24,6 +24,8 @@ Dane :
 ** WAve net model jest na stridach nie na dialcji 
 ** LSTM tylko unrolowane dziłają co zajmuje mnustwo pamieci 
 
+*?* Exponential smothing fiting online initial params done only alfa beta gamma phi to choose 
+
 avg:
 	- godzinne
 		* pogodowa wartości: himi, aparent temp, sunny or cloudy
