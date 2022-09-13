@@ -5,5 +5,5 @@
 
 idf_component_register(
     SRCS main.cc main_functions.cc constants.cc output_handler.cc model.cc ExponentialSmoothing.cc
-    PRIV_REQUIRES tflite-lib spi_flash  
+    PRIV_REQUIRES nvs_flash tflite-lib spi_flash  
     INCLUDE_DIRS "")

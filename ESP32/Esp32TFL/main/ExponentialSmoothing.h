@@ -32,6 +32,6 @@ class ExpSmoothing {
         // esp_err_t save_b();
         // esp_err_t load_b();
         ~ExpSmoothing();
-}
+};
 
 #endif  // EXPONENTIAL_SMOOTHING_H_
