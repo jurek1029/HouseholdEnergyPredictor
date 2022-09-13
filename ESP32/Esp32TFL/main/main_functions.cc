@@ -1,18 +1,3 @@
-/* Copyright 2020 The TensorFlow Authors. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-==============================================================================*/
-
 
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_error_reporter.h"
@@ -29,6 +14,7 @@ limitations under the License.
 #include "freertos/task.h"
 #include "driver/gpio.h"
 
+
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
   tflite::ErrorReporter* error_reporter = nullptr;
@@ -36,11 +22,7 @@ namespace {
   tflite::MicroInterpreter* interpreter = nullptr;
   TfLiteTensor* input = nullptr;
   TfLiteTensor* output = nullptr;
-  float v = 0;
-  //int inference_count = 0;
 
-  // constexpr int kTensorArenaSize = 49016;
-  // constexpr int kTensorArenaSize = 16000;
   constexpr int kTensorArenaSize = 8000;
   uint8_t tensor_arena[kTensorArenaSize];
 }  // namespace
@@ -73,6 +55,7 @@ void setup() {
   // Obtain pointers to the model's input and output tensors.
   input = interpreter->input(0);
   output = interpreter->output(0);
+
   printf("size: %d \n",input->dims->size);
   for(int i = 0; i < input->dims->size; i++){
     printf("dim%d : %d\n",i,input->dims->data[i]);
@@ -80,17 +63,10 @@ void setup() {
   printf("%d\n",int(input->type));
   printf("\n");
 
-  //float* inputData = interpreter->typed_input_tensor<float>(0);
-
-  // if (inputData == nullptr){
-  //   printf("inputData is nullptr \n");
-  // }
   printf("input: zero point: %d, scale: %f \n", input->params.zero_point, input->params.scale);
-  // for(int i = 0; i < 40*4; i ++){
-  //   inputData[i] = input->params.zero_point;
-  // }
+
   for(int i = 0; i < 40*4; i ++){
-     input->data.int8[i] = test0[i] / input->params.scale + input->params.zero_point;
+     input->data.int8[i] = 0 / input->params.scale + input->params.zero_point;
      //input->data.f[i] = float(1.);
   }
   //printf("x: %d, %d \n", input->data.int8[0], input->data.int8[1]);
@@ -115,43 +91,40 @@ void setup() {
     if((i-3) % 4 == 0) printf("\n");
   }
 
-  // for(int i = 0; i < 16; i++){
-  //    printf("%d, \t",output->data.int8[i]);
-  // }
 }
 
 void loop() {
   
-  if (v < 5){
-    for(int i = 0; i < 40*4; i ++){
-      input->data.int8[i] = v / input->params.scale + input->params.zero_point;
-      //input->data.f[i] = float(v);
-    }
+  // if (v < 5){
+  //   for(int i = 0; i < 40*4; i ++){
+  //     input->data.int8[i] = v / input->params.scale + input->params.zero_point;
+  //     //input->data.f[i] = float(v);
+  //   }
 
-    TfLiteStatus invoke_status = interpreter->Invoke();
-    if (invoke_status != kTfLiteOk) {
-      TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
-      return;
-    }
+  //   TfLiteStatus invoke_status = interpreter->Invoke();
+  //   if (invoke_status != kTfLiteOk) {
+  //     TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
+  //     return;
+  //   }
 
-    output = interpreter->output(0);
-    printf("v: %f \n", v);
-    for(int i = 0; i < 16; i++){
-      float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
-      //float f = output->data.f[i];
-      printf("%f, \t",f);
-      if((i-3) % 4 == 0) printf("\n");
-    }
-    printf("\n");
+  //   output = interpreter->output(0);
+  //   printf("v: %f \n", v);
+  //   for(int i = 0; i < 16; i++){
+  //     float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
+  //     //float f = output->data.f[i];
+  //     printf("%f, \t",f);
+  //     if((i-3) % 4 == 0) printf("\n");
+  //   }
+  //   printf("\n");
 
-    // for(int i = 0; i < 16; i++){
-    //    printf("%d, \t",output->data.int8[i]);
-    // }
-    v ++;
-  }
-  else{
+  //   // for(int i = 0; i < 16; i++){
+  //   //    printf("%d, \t",output->data.int8[i]);
+  //   // }
+  //   v ++;
+  // }
+  // else{
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-  }
+  //  }
   // //int8_t data[1][40][4];
 
   // // for ( int i = 0; i < 40; i++){
