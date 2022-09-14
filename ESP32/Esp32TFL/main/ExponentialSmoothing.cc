@@ -80,7 +80,7 @@ esp_err_t ExpSmoothing::load_s(){
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
 
     if (required_size > 0) {
-        err = nvs_get_blob(handle, "s_value", s[0], &required_size);
+        err = nvs_get_blob(handle, "s_value", &s[0], &required_size);
         if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
             return err;  
         } 
@@ -226,7 +226,7 @@ void ExpSmoothing::print(){
 }
 
 void ExpSmoothing::saveAll(){
-    printf("saving");
+    printf("saving ExpSmoothing Values \n");
     save_pred_pos();
     save_s();
     save_c();

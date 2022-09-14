@@ -15,6 +15,15 @@
 #include "freertos/task.h"
 #include "driver/gpio.h"
 
+#include "driver/adc.h"
+#include "esp_adc_cal.h"
+#include "esp_system.h"
+
+
+#define ADC2_CHANNEL    ADC2_CHANNEL_3
+#define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
+#define NO_OF_SAMPLES   64          //Multisampling
+static esp_adc_cal_characteristics_t *adc_chars;
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
@@ -23,17 +32,17 @@ namespace {
   tflite::MicroInterpreter* interpreter = nullptr;
   TfLiteTensor* input = nullptr;
   TfLiteTensor* output = nullptr;
+  int inputSize = 1;
+  int outputSize = 1;
 
   constexpr int kTensorArenaSize = 8000;
   uint8_t tensor_arena[kTensorArenaSize];
 
   ExpSmoothing expSmoothing;
-  float v = 0;
+  //float v = 0;
 }  // namespace
 
-void setup() {
-
-  //expSmoothing.removeFromNVS();
+void setupTFLite(){
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
 
@@ -61,7 +70,6 @@ void setup() {
   input = interpreter->input(0);
   output = interpreter->output(0);
 
-  int inputSize = 1;
   printf("size: %d \n",input->dims->size);
   for(int i = 0; i < input->dims->size; i++){
     inputSize *= input->dims->data[i];
@@ -72,8 +80,17 @@ void setup() {
 
   printf("input: zero point: %d, scale: %f \n", input->params.zero_point, input->params.scale);
 
+  printf("size: %d \n",output->dims->size);
+  for(int i = 0; i < output->dims->size; i++){
+    outputSize *= output->dims->data[i];
+    printf("dim%d : %d\n",i,output->dims->data[i]);
+  }
+  printf("output: zero point: %d, scale: %f \n", output->params.zero_point, output->params.scale);
+}
+
+ std::unique_ptr<float[]> invokeModel(float* inputData){
   for(int i = 0; i < inputSize; i ++){
-     input->data.int8[i] = 0 / input->params.scale + input->params.zero_point;
+     input->data.int8[i] = inputData[i] / input->params.scale + input->params.zero_point;
      //input->data.f[i] = float(1.);
   }
   //printf("x: %d, %d \n", input->data.int8[0], input->data.int8[1]);
@@ -82,61 +99,148 @@ void setup() {
   TfLiteStatus invoke_status = interpreter->Invoke();
   if (invoke_status != kTfLiteOk) {
     TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
-    return;
+    return nullptr;
   }
 
-  output = interpreter->output(0);
-  int outputSize = 1;
-  printf("size: %d \n",output->dims->size);
-  for(int i = 0; i < output->dims->size; i++){
-    outputSize *= output->dims->data[i];
-    printf("dim%d : %d\n",i,output->dims->data[i]);
-  }
-  printf("output: zero point: %d, scale: %f \n", output->params.zero_point, output->params.scale);
+  std::unique_ptr<float[]> outData( new float[outputSize]);
   for(int i = 0; i < outputSize; i++){
      float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
+     outData[i] = f;
     //float f = output->data.f[i];
     printf("%f, \t",f);
     if((i-3) % 4 == 0) printf("\n");
   }
 
+  return outData;
+}
+
+void setupADC(){
+
+     //Check if TP is burned into eFuse
+    if (esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_TP) == ESP_OK) {
+        printf("eFuse Two Point: Supported\n");
+    } else {
+        printf("eFuse Two Point: NOT supported\n");
+    }
+    //Check Vref is burned into eFuse
+    if (esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_VREF) == ESP_OK) {
+        printf("eFuse Vref: Supported\n");
+    } else {
+        printf("eFuse Vref: NOT supported\n");
+    }
+
+    // esp_err_t err;
+    // gpio_num_t adc_gpio_num, dac_gpio_num;
+    // err = adc2_pad_get_io_num( ADC2_EXAMPLE_CHANNEL, &adc_gpio_num );
+    // assert( err == ESP_OK );
+    // printf("ADC2 channel %d @ GPIO %d \n", ADC2_EXAMPLE_CHANNEL, adc_gpio_num);
+
+    //be sure to do the init before using adc2. 
+    printf("adc2_init...\n");
+    adc2_config_channel_atten( ADC2_CHANNEL, ADC_ATTEN_11db);
+
+    adc_chars = (esp_adc_cal_characteristics_t*)calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+}
+
+void readAnalog(){
+    esp_err_t err;
+    int read_raw;
+
+    uint32_t adc_reading = 0;
+    for (int i = 0; i < NO_OF_SAMPLES; i++) {
+            err = adc2_get_raw(ADC2_CHANNEL, ADC_WIDTH_BIT_12, &read_raw);
+            if ( err == ESP_ERR_INVALID_STATE ) {
+                printf("%s: ADC2 not initialized yet.\n", esp_err_to_name(err));
+                return;
+            }
+            else if (err == ESP_ERR_TIMEOUT) {
+                printf("%s: ADC2 is in use by Wi-Fi.\n", esp_err_to_name(err));
+                return;
+            } else if (err != ESP_OK) {
+                printf("%s\n", esp_err_to_name(err));
+                return;
+            }
+            adc_reading += read_raw;
+        }
+        adc_reading /= NO_OF_SAMPLES;
+        //Convert adc_reading to voltage in mV
+        uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+        printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+}
+
+void setup() {
+
+  //expSmoothing.removeFromNVS();
+  setupTFLite();
+  float in[inputSize] = {0};
+  auto outData = invokeModel(in);
+  setupADC();
 }
 
 void loop() {
-  expSmoothing.print();
-  v = expSmoothing.next(v);
-  expSmoothing.saveAll();
-  expSmoothing.print();
+  //v = expSmoothing.next(v);
+  //expSmoothing.saveAll();
+  readAnalog();
   vTaskDelay(1000 / portTICK_PERIOD_MS);
-
-  // if (v < 5){
-  //   for(int i = 0; i < 40*4; i ++){
-  //     input->data.int8[i] = v / input->params.scale + input->params.zero_point;
-  //     //input->data.f[i] = float(v);
-  //   }
-
-  //   TfLiteStatus invoke_status = interpreter->Invoke();
-  //   if (invoke_status != kTfLiteOk) {
-  //     TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
-  //     return;
-  //   }
-
-  //   output = interpreter->output(0);
-  //   printf("v: %f \n", v);
-  //   for(int i = 0; i < 16; i++){
-  //     float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
-  //     //float f = output->data.f[i];
-  //     printf("%f, \t",f);
-  //     if((i-3) % 4 == 0) printf("\n");
-  //   }
-  //   printf("\n");
-
-  //   // for(int i = 0; i < 16; i++){
-  //   //    printf("%d, \t",output->data.int8[i]);
-  //   // }
-  //   v ++;
-  // }
-  // else{
-  // vTaskDelay(1000 / portTICK_PERIOD_MS);
-  //  }
 }
+
+// static bool example_adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle)
+// {
+//     adc_cali_handle_t handle = NULL;
+//     esp_err_t ret = ESP_FAIL;
+//     bool calibrated = false;
+
+// #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+//     if (!calibrated) {
+//         ESP_LOGI(TAG, "calibration scheme version is %s", "Curve Fitting");
+//         adc_cali_curve_fitting_config_t cali_config = {
+//             .unit_id = unit,
+//             .atten = atten,
+//             .bitwidth = ADC_BITWIDTH_DEFAULT,
+//         };
+//         ret = adc_cali_create_scheme_curve_fitting(&cali_config, &handle);
+//         if (ret == ESP_OK) {
+//             calibrated = true;
+//         }
+//     }
+// #endif
+
+// #if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+//     if (!calibrated) {
+//         ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
+//         adc_cali_line_fitting_config_t cali_config = {
+//             .unit_id = unit,
+//             .atten = atten,
+//             .bitwidth = ADC_BITWIDTH_DEFAULT,
+//         };
+//         ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
+//         if (ret == ESP_OK) {
+//             calibrated = true;
+//         }
+//     }
+// #endif
+
+//     *out_handle = handle;
+//     if (ret == ESP_OK) {
+//         ESP_LOGI(TAG, "Calibration Success");
+//     } else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
+//         ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
+//     } else {
+//         ESP_LOGE(TAG, "Invalid arg or no memory");
+//     }
+
+//     return calibrated;
+// }
+
+// static void example_adc_calibration_deinit(adc_cali_handle_t handle)
+// {
+// #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+//     ESP_LOGI(TAG, "deregister %s calibration scheme", "Curve Fitting");
+//     ESP_ERROR_CHECK(adc_cali_delete_scheme_curve_fitting(handle));
+
+// #elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+//     ESP_LOGI(TAG, "deregister %s calibration scheme", "Line Fitting");
+//     ESP_ERROR_CHECK(adc_cali_delete_scheme_line_fitting(handle));
+// #endif
+// }
