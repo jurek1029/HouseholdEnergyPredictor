@@ -16,30 +16,29 @@
 #include "driver/gpio.h"
 
 #include "driver/adc.h"
-#include "esp_adc_cal.h"
 #include "esp_system.h"
+
+#include "dht11.h"
 
 
 #define ADC2_CHANNEL    ADC2_CHANNEL_3
-#define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define NO_OF_SAMPLES   64          //Multisampling
-static esp_adc_cal_characteristics_t *adc_chars;
 
 // Globals, used for compatibility with Arduino-style sketches.
 namespace {
-  tflite::ErrorReporter* error_reporter = nullptr;
-  const tflite::Model* model = nullptr;
-  tflite::MicroInterpreter* interpreter = nullptr;
-  TfLiteTensor* input = nullptr;
-  TfLiteTensor* output = nullptr;
-  int inputSize = 1;
-  int outputSize = 1;
+    tflite::ErrorReporter* error_reporter = nullptr;
+    const tflite::Model* model = nullptr;
+    tflite::MicroInterpreter* interpreter = nullptr;
+    TfLiteTensor* input = nullptr;
+    TfLiteTensor* output = nullptr;
+    int inputSize = 1;
+    int outputSize = 1;
 
-  constexpr int kTensorArenaSize = 8000;
-  uint8_t tensor_arena[kTensorArenaSize];
+    constexpr int kTensorArenaSize = 8000;
+    uint8_t tensor_arena[kTensorArenaSize];
 
-  ExpSmoothing expSmoothing;
-  //float v = 0;
+    ExpSmoothing expSmoothing;
+    //float v = 0;
 }  // namespace
 
 void setupTFLite(){
@@ -114,21 +113,7 @@ void setupTFLite(){
   return outData;
 }
 
-void setupADC(){
-
-     //Check if TP is burned into eFuse
-    if (esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_TP) == ESP_OK) {
-        printf("eFuse Two Point: Supported\n");
-    } else {
-        printf("eFuse Two Point: NOT supported\n");
-    }
-    //Check Vref is burned into eFuse
-    if (esp_adc_cal_check_efuse(ESP_ADC_CAL_VAL_EFUSE_VREF) == ESP_OK) {
-        printf("eFuse Vref: Supported\n");
-    } else {
-        printf("eFuse Vref: NOT supported\n");
-    }
-
+void setupADC2(adc2_channel_t channel){
     // esp_err_t err;
     // gpio_num_t adc_gpio_num, dac_gpio_num;
     // err = adc2_pad_get_io_num( ADC2_EXAMPLE_CHANNEL, &adc_gpio_num );
@@ -137,52 +122,54 @@ void setupADC(){
 
     //be sure to do the init before using adc2. 
     printf("adc2_init...\n");
-    adc2_config_channel_atten( ADC2_CHANNEL, ADC_ATTEN_11db);
-
-    adc_chars = (esp_adc_cal_characteristics_t*)calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_2, ADC_ATTEN_11db, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    adc2_config_channel_atten( channel, ADC_ATTEN_11db);
 }
 
-void readAnalog(){
+uint32_t readAnalogADC2(adc2_channel_t channel){
     esp_err_t err;
     int read_raw;
 
     uint32_t adc_reading = 0;
     for (int i = 0; i < NO_OF_SAMPLES; i++) {
-            err = adc2_get_raw(ADC2_CHANNEL, ADC_WIDTH_BIT_12, &read_raw);
+            err = adc2_get_raw(channel, ADC_WIDTH_BIT_12, &read_raw);
             if ( err == ESP_ERR_INVALID_STATE ) {
                 printf("%s: ADC2 not initialized yet.\n", esp_err_to_name(err));
-                return;
-            }
-            else if (err == ESP_ERR_TIMEOUT) {
+                return 0;
+            } else if (err == ESP_ERR_TIMEOUT) {
                 printf("%s: ADC2 is in use by Wi-Fi.\n", esp_err_to_name(err));
-                return;
+                return 0;
             } else if (err != ESP_OK) {
                 printf("%s\n", esp_err_to_name(err));
-                return;
+                return 0;
             }
             adc_reading += read_raw;
         }
         adc_reading /= NO_OF_SAMPLES;
-        //Convert adc_reading to voltage in mV
-        uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
-        printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+
+        return adc_reading;
 }
 
 void setup() {
 
-  //expSmoothing.removeFromNVS();
-  setupTFLite();
-  float in[inputSize] = {0};
-  auto outData = invokeModel(in);
-  setupADC();
+    //expSmoothing.removeFromNVS();
+    setupTFLite();
+    float in[inputSize] = {0};
+    auto outData = invokeModel(in);
+    setupADC2(ADC2_CHANNEL);
+
+    DHT11_init(GPIO_NUM_2);
 }
 
 void loop() {
-  //v = expSmoothing.next(v);
-  //expSmoothing.saveAll();
-  readAnalog();
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+    //v = expSmoothing.next(v);
+    //expSmoothing.saveAll();
+    uint32_t val = readAnalogADC2(ADC2_CHANNEL);
+    printf("%d\n",val);
+    dht11_reading dth11_val = DHT11_read();
+    printf("Temperature is %d \n", dth11_val.temperature);
+    printf("Humidity is %d\n", dth11_val.humidity);
+    printf("Status code is %d\n", dth11_val.status);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
 // static bool example_adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle)
