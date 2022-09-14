@@ -166,9 +166,8 @@ void loop() {
     uint32_t val = readAnalogADC2(ADC2_CHANNEL);
     printf("%d\n",val);
     dht11_reading dth11_val = DHT11_read();
-    printf("Temperature is %d \n", dth11_val.temperature);
-    printf("Humidity is %d\n", dth11_val.humidity);
-    printf("Status code is %d\n", dth11_val.status);
+    printf("Temperature is %f \n", dth11_val.temperature);
+    printf("Humidity is %f\n", dth11_val.humidity);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
 
