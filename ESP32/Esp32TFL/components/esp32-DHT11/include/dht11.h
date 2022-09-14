@@ -25,6 +25,10 @@
 #ifndef DHT11_H_
 #define DHT11_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include "driver/gpio.h"
 
 enum dht11_status {
@@ -42,5 +46,9 @@ struct dht11_reading {
 extern void DHT11_init(gpio_num_t);
 
 extern struct dht11_reading DHT11_read();
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
