@@ -22,11 +22,93 @@ ExpSmoothing::ExpSmoothing(){
 
     
     err = load_s();
-    if (err != ESP_OK) printf("Error (%s) reading data from NVS!\n", esp_err_to_name(err));
+    if (err != ESP_OK) printf("Error (%s) reading 's' from NVS!\n", esp_err_to_name(err));
     err = load_pred_pos();
-    if (err != ESP_OK) printf("Error (%s) reading data from NVS!\n", esp_err_to_name(err));
-    
+    if (err != ESP_OK) printf("Error (%s) reading 'pred_pos' from NVS!\n", esp_err_to_name(err));
+    err = load_c();
+    if (err != ESP_OK) printf("Error (%s) reading 'c' from NVS!\n", esp_err_to_name(err));
+
     b[0] = 0;
+}
+
+ExpSmoothing::~ExpSmoothing(){
+    printf("saving ExpSmoothing Values \n");
+    save_pred_pos();
+    save_s();
+    save_c();
+}
+
+esp_err_t ExpSmoothing::load_pred_pos(){   
+    predPos = 0;
+
+    nvs_handle_t  handle;
+    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) return err;
+       
+    err = nvs_get_i32(handle, "pred_pos", &predPos);
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
+
+    nvs_close(handle);
+    return ESP_OK;
+    
+}
+
+esp_err_t ExpSmoothing::save_pred_pos(){
+    nvs_handle_t  handle;
+    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) return err;
+       
+    err = nvs_set_i32(handle, "pred_pos", predPos);
+    if (err != ESP_OK) return err;
+
+    err = nvs_commit(handle);
+    if (err != ESP_OK) return err;
+
+    nvs_close(handle);
+    return ESP_OK;
+}
+
+esp_err_t ExpSmoothing::load_s(){
+    s[0] = 1.0994286907946866f;
+
+    nvs_handle_t  handle;
+    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) return err;
+       
+    size_t required_size = 0;  
+    err = nvs_get_blob(handle, "s_value", NULL, &required_size);
+    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
+
+    if (required_size > 0) {
+        err = nvs_get_blob(handle, "s_value", s[0], &required_size);
+        if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
+            return err;  
+        } 
+    }
+    nvs_close(handle);
+    return ESP_OK;
+    
+}
+
+esp_err_t ExpSmoothing::save_s(){
+    nvs_handle_t  handle;
+    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
+    if (err != ESP_OK) return err;
+       
+    size_t required_size = sizeof(float); 
+    err = nvs_set_blob(handle, "s_value", &s[0], required_size);
+    if (err != ESP_OK) return err;
+
+    // Commit
+    err = nvs_commit(handle);
+    if (err != ESP_OK) return err;
+
+    // Close
+    nvs_close(handle);
+    return ESP_OK;
+}
+
+esp_err_t ExpSmoothing::load_c(){
     // i realy love you c++ if this is only way to initialize value's to array 
     c = new float[L];
     c[0] = -0.9335412979125977;
@@ -85,74 +167,32 @@ ExpSmoothing::ExpSmoothing(){
     c[53] = 0.02668880484998226;
     c[54] = 1.6311900615692139;
     c[55] = -0.06401696801185608;
-}
-
-ExpSmoothing::~ExpSmoothing(){
-
-}
-
-esp_err_t ExpSmoothing::load_pred_pos(){   
-    predPos = 0;
 
     nvs_handle_t  handle;
     esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) return err;
-       
-    err = nvs_get_i32(handle, "pred_pos", &predPos);
+
+    size_t required_size = 0; 
+    err = nvs_get_blob(handle, "c_value", NULL, &required_size);
     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
 
-    nvs_close(handle);
-    return ESP_OK;
-    
-}
-
-esp_err_t ExpSmoothing::save_pred_pos(){
-    nvs_handle_t  handle;
-    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) return err;
-       
-    err = nvs_set_i32(handle, "pred_pos", predPos);
-    if (err != ESP_OK) return err;
-
-    err = nvs_commit(handle);
-    if (err != ESP_OK) return err;
-
+    if (required_size > 0) {
+        err = nvs_get_blob(handle, "c_value", c, &required_size);
+        if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
+            return err;  
+        } 
+    }
     nvs_close(handle);
     return ESP_OK;
 }
 
-esp_err_t ExpSmoothing::load_s(){
-    s[0] = 1.0994286907946866f;
-
+esp_err_t ExpSmoothing::save_c(){
     nvs_handle_t  handle;
     esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
     if (err != ESP_OK) return err;
        
-    printf("Open\n");
-
-    u_int32_t required_size = sizeof(float);
-    float* s_value = (float*)malloc(sizeof(float)); 
-    err = nvs_get_blob(handle, "s_value", s_value, &required_size);
-    if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
-        free(s_value);
-        return err;  
-    } 
-
-    s[0] = *s_value;
-    free(s_value);
-
-    nvs_close(handle);
-    return ESP_OK;
-    
-}
-
-esp_err_t ExpSmoothing::save_s(){
-    nvs_handle_t  handle;
-    esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
-    if (err != ESP_OK) return err;
-       
-    size_t required_size = sizeof(float); 
-    err = nvs_set_blob(handle, "s_value", &s[0], required_size);
+    size_t required_size = sizeof(float)*L; 
+    err = nvs_set_blob(handle, "c_value", c, required_size);
     if (err != ESP_OK) return err;
 
     // Commit
@@ -161,14 +201,6 @@ esp_err_t ExpSmoothing::save_s(){
 
     // Close
     nvs_close(handle);
-    return ESP_OK;
-}
-
-esp_err_t ExpSmoothing::load_c(){
-    return ESP_OK;
-}
-
-esp_err_t ExpSmoothing::save_c(){
     return ESP_OK;
 }
 
@@ -185,4 +217,21 @@ float ExpSmoothing::next(float x){
     b[0] = b[1];
 
     return predicted;
+}
+
+void ExpSmoothing::print(){
+    printf("\n");
+    printf("s value: %f, pred pos: %d \n", s[0], predPos);
+    printf("c[0]: %f, c[1]: %f, c[2]: %f, c[3]: %f", c[0],c[1],c[2],c[3]);
+}
+
+void ExpSmoothing::saveAll(){
+    printf("saving");
+    save_pred_pos();
+    save_s();
+    save_c();
+}
+
+void ExpSmoothing::removeFromNVS(){
+    nvs_flash_erase();
 }

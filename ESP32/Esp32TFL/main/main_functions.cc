@@ -7,8 +7,9 @@
 
 #include "main_functions.h"
 #include "model.h"
-#include "constants.h"
-#include "output_handler.h"
+// #include "constants.h"
+// #include "output_handler.h"
+#include "ExponentialSmoothing.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -25,10 +26,14 @@ namespace {
 
   constexpr int kTensorArenaSize = 8000;
   uint8_t tensor_arena[kTensorArenaSize];
+
+  ExpSmoothing expSmoothing;
+  float v = 0;
 }  // namespace
 
 void setup() {
 
+  //expSmoothing.removeFromNVS();
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
 
@@ -56,8 +61,10 @@ void setup() {
   input = interpreter->input(0);
   output = interpreter->output(0);
 
+  int inputSize = 1;
   printf("size: %d \n",input->dims->size);
   for(int i = 0; i < input->dims->size; i++){
+    inputSize *= input->dims->data[i];
     printf("dim%d : %d\n",i,input->dims->data[i]);
   }
   printf("%d\n",int(input->type));
@@ -65,7 +72,7 @@ void setup() {
 
   printf("input: zero point: %d, scale: %f \n", input->params.zero_point, input->params.scale);
 
-  for(int i = 0; i < 40*4; i ++){
+  for(int i = 0; i < inputSize; i ++){
      input->data.int8[i] = 0 / input->params.scale + input->params.zero_point;
      //input->data.f[i] = float(1.);
   }
@@ -79,12 +86,14 @@ void setup() {
   }
 
   output = interpreter->output(0);
+  int outputSize = 1;
   printf("size: %d \n",output->dims->size);
   for(int i = 0; i < output->dims->size; i++){
+    outputSize *= output->dims->data[i];
     printf("dim%d : %d\n",i,output->dims->data[i]);
   }
   printf("output: zero point: %d, scale: %f \n", output->params.zero_point, output->params.scale);
-  for(int i = 0; i < 16; i++){
+  for(int i = 0; i < outputSize; i++){
      float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
     //float f = output->data.f[i];
     printf("%f, \t",f);
@@ -94,7 +103,12 @@ void setup() {
 }
 
 void loop() {
-  
+  expSmoothing.print();
+  v = expSmoothing.next(v);
+  expSmoothing.saveAll();
+  expSmoothing.print();
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
   // if (v < 5){
   //   for(int i = 0; i < 40*4; i ++){
   //     input->data.int8[i] = v / input->params.scale + input->params.zero_point;
@@ -123,40 +137,6 @@ void loop() {
   //   v ++;
   // }
   // else{
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  // vTaskDelay(1000 / portTICK_PERIOD_MS);
   //  }
-  // //int8_t data[1][40][4];
-
-  // // for ( int i = 0; i < 40; i++){
-  // //   for (int j = 0; j < 4; j++) {
-  // //       data[0][i][j] = inputData[0][i][j] / input->params.scale + input->params.zero_point;
-  // //   }
-  // // }
-  // // Quantize the input from floating-point to integer
-  // //int8_t x_quantized = inputData / input->params.scale + input->params.zero_point;
-  // // Place the quantized input in the model's input tensor
-  // //input->data.int8[0] = inputData;
-
-  // // Run inference, and report any error
-  // TfLiteStatus invoke_status = interpreter->Invoke();
-  // if (invoke_status != kTfLiteOk) {
-  //   TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
-  //   return;
-  // }
-
-  // int8_t* output = interpreter->typed_output_tensor<int8_t>(0);
-  // printf("%d", output[0]);
-  // // Obtain the quantized output from model's output tensor
-  // // int8_t y_quantized = output->data.int8[0];
-  // // // Dequantize the output from integer to floating-point
-  // // float y = (y_quantized - output->params.zero_point) * output->params.scale;
-
-  // // Output the results. A custom HandleOutput function can be implemented
-  // // for each supported hardware target.
-  // //HandleOutput(error_reporter, x, y);
-
-  // // Increment the inference_counter, and reset it if we have reached
-  // // the total number per cycle
-  // // inference_count += 1;
-  // // if (inference_count >= kInferencesPerCycle) inference_count = 0;
 }

@@ -18,11 +18,8 @@ class ExpSmoothing {
         float s[2]; // = {1.0994286907946866f, 0.0f};
         float b[2]; // = {0, 0};
         float* c;
-        int predPos;
+        int32_t predPos;
 
-    public:
-        ExpSmoothing();
-        float next(float x);
         esp_err_t save_s();
         esp_err_t save_c();
         esp_err_t save_pred_pos();
@@ -31,6 +28,13 @@ class ExpSmoothing {
         esp_err_t load_pred_pos();
         // esp_err_t save_b();
         // esp_err_t load_b();
+
+    public:
+        ExpSmoothing();
+        float next(float x);
+        void print();
+        void saveAll();
+        void removeFromNVS();
         ~ExpSmoothing();
 };
 
