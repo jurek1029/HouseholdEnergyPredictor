@@ -1,4 +1,7 @@
 
+#include <time.h>
+#include <sys/time.h>
+
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_error_reporter.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
@@ -17,6 +20,10 @@
 
 #include "driver/adc.h"
 #include "esp_system.h"
+#include "esp_event.h"
+
+#include "protocol_examples_common.h"
+#include "esp_sntp.h"
 
 #include "dht11.h"
 
@@ -38,10 +45,14 @@ namespace {
     uint8_t tensor_arena[kTensorArenaSize];
 
     ExpSmoothing expSmoothing;
+
+    time_t now;
+    struct tm timeinfo;
     //float v = 0;
 }  // namespace
 
 void setupTFLite(){
+
   static tflite::MicroErrorReporter micro_error_reporter;
   error_reporter = &micro_error_reporter;
 
@@ -149,6 +160,59 @@ uint32_t readAnalogADC2(adc2_channel_t channel){
         return adc_reading;
 }
 
+static void obtain_time(void)
+{
+    //ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    /**
+     * NTP server address could be aquired via DHCP,
+     * see LWIP_DHCP_GET_NTP_SRV menuconfig option
+     */
+#ifdef LWIP_DHCP_GET_NTP_SRV
+    sntp_servermode_dhcp(1);
+#endif
+
+    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+     * Read "Establishing Wi-Fi or Ethernet Connection" section in
+     * examples/protocols/README.md for more information about this function.
+     */
+    ESP_ERROR_CHECK(example_connect());
+
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    sntp_setservername(0, "pool.ntp.org");
+    sntp_init();
+
+    // wait for time to be set
+    //time_t now = 0;
+    //struct tm timeinfo = { 0 };
+    int retry = 0;
+    const int retry_count = 10;
+    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
+        printf("Waiting for system time to be set... (%d/%d)\n", retry, retry_count);
+        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+    //time(&now);
+    //localtime_r(&now, &timeinfo);
+
+    ESP_ERROR_CHECK( example_disconnect() );
+}
+
+void setupNTPTime(){
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    // Is time set? If not, tm_year will be (1970 - 1900).
+    if (timeinfo.tm_year < (2016 - 1900)) {
+        printf("Time is not set yet. Connecting to WiFi and getting time over NTP. \n");
+        obtain_time();
+        // update 'now' variable with current time
+        time(&now);
+    }
+    setenv("TZ", "UTC-2", 1);
+    tzset();
+}
+
 void setup() {
 
     //expSmoothing.removeFromNVS();
@@ -158,8 +222,9 @@ void setup() {
     setupADC2(ADC2_CHANNEL);
 
     DHT11_init(GPIO_NUM_2);
+    setupNTPTime();
 }
-
+char strftime_buf[64];
 void loop() {
     //v = expSmoothing.next(v);
     //expSmoothing.saveAll();
@@ -169,64 +234,12 @@ void loop() {
     printf("Temperature is %f \n", dth11_val.temperature);
     printf("Humidity is %f\n", dth11_val.humidity);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
+    printf("%ld\n", now);
+    printf("The current date/time is: %s \n", strftime_buf);
+    printf("%d %d %d: %d:%d || wd: %d, yd: %d\n", timeinfo.tm_year, timeinfo.tm_mon, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_wday, timeinfo.tm_yday);
 }
-
-// static bool example_adc_calibration_init(adc_unit_t unit, adc_atten_t atten, adc_cali_handle_t *out_handle)
-// {
-//     adc_cali_handle_t handle = NULL;
-//     esp_err_t ret = ESP_FAIL;
-//     bool calibrated = false;
-
-// #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-//     if (!calibrated) {
-//         ESP_LOGI(TAG, "calibration scheme version is %s", "Curve Fitting");
-//         adc_cali_curve_fitting_config_t cali_config = {
-//             .unit_id = unit,
-//             .atten = atten,
-//             .bitwidth = ADC_BITWIDTH_DEFAULT,
-//         };
-//         ret = adc_cali_create_scheme_curve_fitting(&cali_config, &handle);
-//         if (ret == ESP_OK) {
-//             calibrated = true;
-//         }
-//     }
-// #endif
-
-// #if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-//     if (!calibrated) {
-//         ESP_LOGI(TAG, "calibration scheme version is %s", "Line Fitting");
-//         adc_cali_line_fitting_config_t cali_config = {
-//             .unit_id = unit,
-//             .atten = atten,
-//             .bitwidth = ADC_BITWIDTH_DEFAULT,
-//         };
-//         ret = adc_cali_create_scheme_line_fitting(&cali_config, &handle);
-//         if (ret == ESP_OK) {
-//             calibrated = true;
-//         }
-//     }
-// #endif
-
-//     *out_handle = handle;
-//     if (ret == ESP_OK) {
-//         ESP_LOGI(TAG, "Calibration Success");
-//     } else if (ret == ESP_ERR_NOT_SUPPORTED || !calibrated) {
-//         ESP_LOGW(TAG, "eFuse not burnt, skip software calibration");
-//     } else {
-//         ESP_LOGE(TAG, "Invalid arg or no memory");
-//     }
-
-//     return calibrated;
-// }
-
-// static void example_adc_calibration_deinit(adc_cali_handle_t handle)
-// {
-// #if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
-//     ESP_LOGI(TAG, "deregister %s calibration scheme", "Curve Fitting");
-//     ESP_ERROR_CHECK(adc_cali_delete_scheme_curve_fitting(handle));
-
-// #elif ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-//     ESP_LOGI(TAG, "deregister %s calibration scheme", "Line Fitting");
-//     ESP_ERROR_CHECK(adc_cali_delete_scheme_line_fitting(handle));
-// #endif
-// }
