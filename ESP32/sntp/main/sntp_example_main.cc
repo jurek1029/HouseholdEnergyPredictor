@@ -24,7 +24,7 @@
 
 static void obtain_time(void);
 
-void app_main(void)
+extern "C" void app_main(void)
 {
 
     time_t now;

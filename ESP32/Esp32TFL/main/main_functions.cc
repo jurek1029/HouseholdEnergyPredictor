@@ -162,48 +162,29 @@ uint32_t readAnalogADC2(adc2_channel_t channel){
 
 static void obtain_time(void)
 {
-    //ESP_ERROR_CHECK(nvs_flash_init());
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
-
-    /**
-     * NTP server address could be aquired via DHCP,
-     * see LWIP_DHCP_GET_NTP_SRV menuconfig option
-     */
-#ifdef LWIP_DHCP_GET_NTP_SRV
-    sntp_servermode_dhcp(1);
-#endif
-
-    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
-     * Read "Establishing Wi-Fi or Ethernet Connection" section in
-     * examples/protocols/README.md for more information about this function.
-     */
     ESP_ERROR_CHECK(example_connect());
 
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "pool.ntp.org");
     sntp_init();
 
-    // wait for time to be set
-    //time_t now = 0;
-    //struct tm timeinfo = { 0 };
     int retry = 0;
     const int retry_count = 10;
     while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
         printf("Waiting for system time to be set... (%d/%d)\n", retry, retry_count);
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
-    //time(&now);
-    //localtime_r(&now, &timeinfo);
 
-    ESP_ERROR_CHECK( example_disconnect() );
+    ESP_ERROR_CHECK(example_disconnect());
 }
 
 void setupNTPTime(){
     time(&now);
     localtime_r(&now, &timeinfo);
     // Is time set? If not, tm_year will be (1970 - 1900).
-    if (timeinfo.tm_year < (2016 - 1900)) {
+    if (timeinfo.tm_year < (2020 - 1900)) {
         printf("Time is not set yet. Connecting to WiFi and getting time over NTP. \n");
         obtain_time();
         // update 'now' variable with current time
@@ -219,27 +200,30 @@ void setup() {
     setupTFLite();
     float in[inputSize] = {0};
     auto outData = invokeModel(in);
+    setupNTPTime();
     setupADC2(ADC2_CHANNEL);
 
     DHT11_init(GPIO_NUM_2);
-    setupNTPTime();
 }
 char strftime_buf[64];
 void loop() {
-    //v = expSmoothing.next(v);
-    //expSmoothing.saveAll();
     uint32_t val = readAnalogADC2(ADC2_CHANNEL);
+    float expValue = expSmoothing.next(val);
+    expSmoothing.saveAll();
+
+
     printf("%d\n",val);
     dht11_reading dth11_val = DHT11_read();
     printf("Temperature is %f \n", dth11_val.temperature);
     printf("Humidity is %f\n", dth11_val.humidity);
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+
     time_t now;
     struct tm timeinfo;
     time(&now);
     localtime_r(&now, &timeinfo);
-    strftime(strftime_buf, sizeof(strftime_buf), "%c", &timeinfo);
-    printf("%ld\n", now);
-    printf("The current date/time is: %s \n", strftime_buf);
-    printf("%d %d %d: %d:%d || wd: %d, yd: %d\n", timeinfo.tm_year, timeinfo.tm_mon, timeinfo.tm_mday, timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_wday, timeinfo.tm_yday);
+    printf("Day percent: %f \n", timeinfo.tm_hour / 24.0f + timeinfo.tm_min / (24.0f*60));
+    printf("Week percent: %f \n", timeinfo.tm_hour / (24.0f * 7) + timeinfo.tm_min / (24.0f*60 * 7) + timeinfo.tm_wday / 7.0f);
+    printf("Year percent: %f \n", timeinfo.tm_yday / (365.0f));
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
