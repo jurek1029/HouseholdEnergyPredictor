@@ -52,6 +52,7 @@ namespace LoadPrediction{
         if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
 
         if (required_size > 0) {
+            printf("req size: %s", name);
             err = nvs_get_blob(handle, name, value, &required_size);
             if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
                 return err;  
@@ -78,14 +79,23 @@ namespace LoadPrediction{
         return ESP_OK;
     }
 
+    void moveValuesToPast(){
+        for(int i = 1; i < INPUT_LEN; i ++){
+            pastEnergyValues[i - 1] = pastEnergyValues[i];
+            pastExpSmoothValues[i - 1] = pastExpSmoothValues[i];
+            pastTempValues[i - 1] = pastTempValues[i];
+            pastWeekPercValues[i - 1] = pastWeekPercValues[i];
+        }
+    }
+
     void saveAllValues(){
         saveValuesToNVS("energy_values",sizeof(pastEnergyValues) ,pastEnergyValues);
-        saveValuesToNVS("exp_smooth_values", sizeof(pastExpSmoothValues), pastExpSmoothValues);
+        saveValuesToNVS("exp_values", sizeof(pastExpSmoothValues), pastExpSmoothValues);
         saveValuesToNVS("temp_values", sizeof(pastTempValues), pastTempValues);
-        saveValuesToNVS("week_perc_values",sizeof(pastWeekPercValues), pastWeekPercValues);
+        saveValuesToNVS("week_values",sizeof(pastWeekPercValues), pastWeekPercValues);
         expSmoothing.saveAll();
         #ifdef DEBUG_PRINT_LOGS
-        printf("LoadPrediction Saving Values");
+        printf("LoadPrediction Saving Values \n");
         #endif
     }
 
@@ -136,13 +146,13 @@ namespace LoadPrediction{
     }
 
     void setupTFLiteLoadPrediction(){
-        std::fill_n(pastExpSmoothValues,INPUT_LEN,1);
-        std::fill_n(pastTempValues,INPUT_LEN,2);
-        std::fill_n(pastWeekPercValues,INPUT_LEN,3);
-        // loadValuesFromNVS("energy_values", pastEnergyValues);
-        // loadValuesFromNVS("exp_smooth_values", pastExpSmoothValues);
-        // loadValuesFromNVS("temp_values", pastTempValues);
-        // loadValuesFromNVS("week_perc_values", pastWeekPercValues);
+        // std::fill_n(pastExpSmoothValues,INPUT_LEN,1);
+        // std::fill_n(pastTempValues,INPUT_LEN,2);
+        // std::fill_n(pastWeekPercValues,INPUT_LEN,3);
+        loadValuesFromNVS("energy_values", pastEnergyValues);
+        loadValuesFromNVS("exp_values", pastExpSmoothValues);
+        loadValuesFromNVS("temp_values", pastTempValues);
+        loadValuesFromNVS("week_values", pastWeekPercValues);
 
         #ifdef DEBUG_PRINT_LOGS
         for(int i = 0; i < INPUT_LEN; i++){
@@ -175,8 +185,38 @@ namespace LoadPrediction{
             float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
             outData[i] = f;
             //float f = output->data.f[i];
+            #ifdef DEBUG_PRINT_LOGS
             printf("%f, \t",f);
             if((i-3) % 4 == 0) printf("\n");
+            #endif
+        }
+
+        return outData;
+    }
+
+    std::unique_ptr<float[]> invokeModel(float* inputDataEnergy, float* inputDataExpSmooth, float* inputDataTemp, float* inputDataWeekPer){
+        for(int i = 0; i < inputSize / 4; i ++){
+            input->data.int8[i * 4]     = inputDataEnergy[i] / input->params.scale + input->params.zero_point;
+            input->data.int8[i * 4 + 1] = inputDataExpSmooth[i] / input->params.scale + input->params.zero_point;
+            input->data.int8[i * 4 + 2] = inputDataTemp[i] / input->params.scale + input->params.zero_point;
+            input->data.int8[i * 4 + 3] = inputDataWeekPer[i] / input->params.scale + input->params.zero_point;
+        }
+
+        TfLiteStatus invoke_status = interpreter->Invoke();
+        if (invoke_status != kTfLiteOk) {
+            TF_LITE_REPORT_ERROR(error_reporter, "Invoke failed on x: \n" );
+            return nullptr;
+        }
+
+        std::unique_ptr<float[]> outData( new float[outputSize]);
+        for(int i = 0; i < outputSize; i++){
+            float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
+            outData[i] = f;
+            //float f = output->data.f[i];
+            #ifdef DEBUG_PRINT_LOGS
+            printf("%f, \t",f);
+            if((i-3) % 4 == 0) printf("\n");
+            #endif
         }
 
         return outData;
@@ -184,7 +224,9 @@ namespace LoadPrediction{
 
     std::unique_ptr<float[]> predictNextLoad(){
 
-        // TODO Read real power demand 
+        moveValuesToPast();
+
+        // TODO Read real power demand in kWh
         uint32_t val = readAnalogADC2(ADC2_CHANNEL);
         float expValue = expSmoothing.next(val);
 
@@ -196,6 +238,11 @@ namespace LoadPrediction{
         localtime_r(&now, &timeinfo);
         float weekPercent = timeinfo.tm_hour / (24.0f * 7) + timeinfo.tm_min / (24.0f*60 * 7) + timeinfo.tm_wday / 7.0f;
 
+        pastEnergyValues[INPUT_LEN - 1] = val;
+        pastExpSmoothValues[INPUT_LEN - 1] = expValue;
+        pastTempValues[INPUT_LEN - 1] = dth11_val.temperature;
+        pastWeekPercValues[INPUT_LEN - 1] = weekPercent;
+
         #ifdef DEBUG_PRINT_LOGS
         printf("val: %d  expVal: %f\n",val, expValue);
         printf("Temperature is %f \n", dth11_val.temperature);
@@ -204,9 +251,10 @@ namespace LoadPrediction{
         printf("Week percent: %f \n", timeinfo.tm_hour / (24.0f * 7) + timeinfo.tm_min / (24.0f*60 * 7) + timeinfo.tm_wday / 7.0f);
         printf("Year percent: %f \n", timeinfo.tm_yday / (365.0f));
         #endif
+        
+        auto outData = invokeModel(pastEnergyValues, pastExpSmoothValues, pastTempValues, pastWeekPercValues);
 
         saveAllValues();
-        std::unique_ptr<float[]> outData( new float[outputSize]);
         return outData;
     } 
 
