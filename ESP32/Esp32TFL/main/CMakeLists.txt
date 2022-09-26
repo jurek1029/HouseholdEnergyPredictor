@@ -4,6 +4,6 @@
 #
 
 idf_component_register(
-    SRCS main.cc main_functions.cc constants.cc output_handler.cc model.cc ExponentialSmoothing.cc
+    SRCS main.cc main_functions.cc NTPTime.cc ADCHelper.cc model.cc ExponentialSmoothing.cc
     #PRIV_REQUIRES esp32-DHT11 esp_adc_cal nvs_flash tflite-lib spi_flash  
     INCLUDE_DIRS "")
