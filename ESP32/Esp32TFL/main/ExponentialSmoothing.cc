@@ -226,7 +226,9 @@ void ExpSmoothing::print(){
 }
 
 void ExpSmoothing::saveAll(){
+    #ifdef DEBUG_PRINT_LOGS
     printf("saving ExpSmoothing Values \n");
+    #endif
     save_pred_pos();
     save_s();
     save_c();
