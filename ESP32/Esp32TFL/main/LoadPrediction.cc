@@ -11,15 +11,21 @@
 #include "NTPTime.h"
 #include "ADCHelper.h"
 #include "dht11.h"
+#include "WebSocket.h"
+#include "WiFi.h"
 
 #include <stdio.h>
 #include "esp_system.h"
 #include "nvs_flash.h"
 #include "nvs.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #define ADC2_CHANNEL    ADC2_CHANNEL_3
 #define INPUT_LEN 40
 #define STORAGE_NAMESPACE "storage"
+#define WEBSOCKET_URI "ws://192.168.1.13"
 
 namespace LoadPrediction{
 
@@ -161,9 +167,10 @@ namespace LoadPrediction{
         #endif
 
         setupTFLite();
-        NTPTime::setupNTPTime();
         setupADC2(ADC2_CHANNEL);
         DHT11_init(GPIO_NUM_2);
+        NTPTime::setupNTPTime();
+        //websocket::setupWebSocket(WEBSOCKET_URI);
     }
 
     std::unique_ptr<float[]> invokeModel(float* inputData){
@@ -255,6 +262,9 @@ namespace LoadPrediction{
         auto outData = invokeModel(pastEnergyValues, pastExpSmoothValues, pastTempValues, pastWeekPercValues);
 
         saveAllValues();
+        char data[32];
+        int len = sprintf(data, "hello analog V: %d", val);
+        websocket::sendDataADC2Clear(data,len);
         return outData;
     } 
 

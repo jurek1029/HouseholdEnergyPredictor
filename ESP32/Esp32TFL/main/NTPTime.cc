@@ -2,21 +2,21 @@
 
 #include <time.h>
 #include <sys/time.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
+// #include "freertos/FreeRTOS.h"
+// #include "freertos/task.h"
 
-#include "esp_system.h"
-#include "esp_event.h"
+// #include "esp_system.h"
+// #include "esp_event.h"
 
-#include "nvs_flash.h"
-#include "protocol_examples_common.h"
+// #include "nvs_flash.h"
+// #include "protocol_examples_common.h"
 #include "esp_sntp.h"
+#include "WiFi.h"
 
 void NTPTime::obtain_time()
 {
-    ESP_ERROR_CHECK(esp_netif_init());
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
-    ESP_ERROR_CHECK(example_connect());
+    wifi::setupWiFi();
+    wifi::connect();
 
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
     sntp_setservername(0, "pool.ntp.org");
@@ -29,7 +29,7 @@ void NTPTime::obtain_time()
         vTaskDelay(2000 / portTICK_PERIOD_MS);
     }
 
-    ESP_ERROR_CHECK(example_disconnect());
+    wifi::disconnect();
 }
 
 void NTPTime::setupNTPTime(){
