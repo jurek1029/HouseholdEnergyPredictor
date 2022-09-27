@@ -18,7 +18,9 @@ namespace websocket{
 
     static const char *TAG = "WEBSOCKET";
     esp_websocket_client_handle_t client;
-     esp_websocket_client_config_t websocket_cfg = {};
+    esp_websocket_client_config_t websocket_cfg = {};
+
+    void(*eventHandler)(esp_websocket_event_data_t*){nullptr};
 
     void websocket_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
     {
@@ -37,6 +39,9 @@ namespace websocket{
                 ESP_LOGW(TAG, "Received closed message with code=%d", 256*data->data_ptr[0] + data->data_ptr[1]);
             } else {
                 ESP_LOGW(TAG, "Received=%.*s", data->data_len, (char *)data->data_ptr);
+                if(eventHandler != nullptr){
+                    eventHandler(data);
+                }
             }
             ESP_LOGW(TAG, "Total payload length=%d, data_len=%d, current payload offset=%d\r\n", data->payload_len, data->data_len, data->payload_offset);
 
@@ -47,8 +52,9 @@ namespace websocket{
         }
     }
 
-    void setupWebSocket(const char* uri){      
+    void setupWebSocket(const char* uri, void(*_eventHandler)(esp_websocket_event_data_t*data)){      
         websocket_cfg.uri = uri;
+        eventHandler = _eventHandler;
     }
 
     void openWebSocket(){
@@ -71,7 +77,7 @@ namespace websocket{
 
     void sendData(char* data, int len){
         if (esp_websocket_client_is_connected(client)) {
-            ESP_LOGI(TAG, "Sending %s", data);
+            ESP_LOGW(TAG, "Sending %s", data);
             esp_websocket_client_send_text(client, data, len, portMAX_DELAY);
         }
     }
@@ -80,7 +86,7 @@ namespace websocket{
         openWebSocket();
         vTaskDelay(100 / portTICK_PERIOD_MS);
         if (esp_websocket_client_is_connected(client)) {
-            ESP_LOGI(TAG, "Sending %s", data);
+            ESP_LOGW(TAG, "Sending %s", data);
             esp_websocket_client_send_text(client, data, len, portMAX_DELAY);
         }
         closeWebSocket();

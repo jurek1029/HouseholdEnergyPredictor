@@ -12,7 +12,7 @@
 #include "ADCHelper.h"
 #include "dht11.h"
 #include "WebSocket.h"
-#include "WiFi.h"
+// #include "WiFi.h"
 
 #include <stdio.h>
 #include "esp_system.h"
@@ -22,7 +22,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#include "esp_wifi.h"
+#include "esp_websocket_client.h"
 
 #define ADC2_CHANNEL    ADC2_CHANNEL_3
 #define INPUT_LEN 40
@@ -153,6 +153,10 @@ namespace LoadPrediction{
         printf("output: zero point: %d, scale: %f \n", output->params.zero_point, output->params.scale);
     }
 
+    void webSocketMessageHandler(esp_websocket_event_data_t* data){
+        printf("Message Handeled: %.*s \n", data->data_len, (char *)data->data_ptr);
+    }
+
     void setupTFLiteLoadPrediction(){
         // std::fill_n(pastExpSmoothValues,INPUT_LEN,1);
         // std::fill_n(pastTempValues,INPUT_LEN,2);
@@ -172,7 +176,7 @@ namespace LoadPrediction{
         setupADC2(ADC2_CHANNEL);
         DHT11_init(GPIO_NUM_2);
         NTPTime::setupNTPTime();
-        websocket::setupWebSocket(WEBSOCKET_URI);
+        websocket::setupWebSocket(WEBSOCKET_URI, &webSocketMessageHandler);
     }
 
     std::unique_ptr<float[]> invokeModel(float* inputData){

@@ -12,6 +12,12 @@ void setup(){
     esp_log_level_set("WEBSOCKET_CLIENT", ESP_LOG_DEBUG);
     esp_log_level_set("TRANSPORT_WS", ESP_LOG_DEBUG);
     esp_log_level_set("TRANS_TCP", ESP_LOG_DEBUG);
+
+    esp_log_level_set("wifi", ESP_LOG_ERROR);
+    esp_log_level_set("wifi_init", ESP_LOG_ERROR);
+    esp_log_level_set("example_connect", ESP_LOG_ERROR);
+
+    esp_log_level_set("WEBSOCKET", ESP_LOG_WARN);
     LoadPrediction::setupTFLiteLoadPrediction();
     float in[4*40] = {0};
     auto outData = LoadPrediction::invokeModel(in);
