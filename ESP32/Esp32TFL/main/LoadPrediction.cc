@@ -22,6 +22,8 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "esp_wifi.h"
+
 #define ADC2_CHANNEL    ADC2_CHANNEL_3
 #define INPUT_LEN 40
 #define STORAGE_NAMESPACE "storage"
@@ -170,7 +172,7 @@ namespace LoadPrediction{
         setupADC2(ADC2_CHANNEL);
         DHT11_init(GPIO_NUM_2);
         NTPTime::setupNTPTime();
-        //websocket::setupWebSocket(WEBSOCKET_URI);
+        websocket::setupWebSocket(WEBSOCKET_URI);
     }
 
     std::unique_ptr<float[]> invokeModel(float* inputData){
@@ -234,7 +236,11 @@ namespace LoadPrediction{
         moveValuesToPast();
 
         // TODO Read real power demand in kWh
+        //esp_wifi_stop();
         uint32_t val = readAnalogADC2(ADC2_CHANNEL);
+        //esp_wifi_start();
+        
+
         float expValue = expSmoothing.next(val);
 
         dht11_reading dth11_val = DHT11_read();

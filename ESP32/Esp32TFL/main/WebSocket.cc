@@ -18,6 +18,7 @@ namespace websocket{
 
     static const char *TAG = "WEBSOCKET";
     esp_websocket_client_handle_t client;
+     esp_websocket_client_config_t websocket_cfg = {};
 
     void websocket_event_handler(void *handler_args, esp_event_base_t base, int32_t event_id, void *event_data)
     {
@@ -46,19 +47,18 @@ namespace websocket{
         }
     }
 
-    void setupWebSocket(const char* uri){
+    void setupWebSocket(const char* uri){      
+        websocket_cfg.uri = uri;
+    }
 
+    void openWebSocket(){
         wifi::setupWiFi();
         wifi::connect();
-
-        esp_websocket_client_config_t websocket_cfg = {};
-        websocket_cfg.uri = uri;
-
+        
         ESP_LOGI(TAG, "Connecting to %s...", websocket_cfg.uri);
 
         client = esp_websocket_client_init(&websocket_cfg);
         esp_websocket_register_events(client, WEBSOCKET_EVENT_ANY, websocket_event_handler, (void *)client);
-
         esp_websocket_client_start(client);
     }
 
@@ -77,7 +77,7 @@ namespace websocket{
     }
 
     void sendDataADC2Clear(char* data, int len){
-        setupWebSocket(WEBSOCKET_URI);
+        openWebSocket();
         vTaskDelay(100 / portTICK_PERIOD_MS);
         if (esp_websocket_client_is_connected(client)) {
             ESP_LOGI(TAG, "Sending %s", data);
