@@ -5,6 +5,7 @@ LPG10.8.0/
 Graph/
 
 **/build/
+**/node_modules/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

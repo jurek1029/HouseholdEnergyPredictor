@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script src="https://code.highcharts.com/highcharts.js"></script>
+		<script src="index.js"></script>
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body>
+		<div class="video-background">
+			<div class="video-foreground" id="vid">
+			</div>
+		</div>
+	
+		<h1> <b>ESP32 Home Center</b></h1>
+		<br><br>
+		<div class="box">
+			Temperatura: <span id="temp">0</span>&deg;C <br>
+			Wilgotno&#347;&#263;: <span id="humi">0</span>% <br>
+			<!--ul>
+				<li><span id="minutes"></span>Minutes</li>
+				<li><span id="seconds"></span>Seconds</li>
+			</ul-->		
+		</div>
+		<br><br>
+		<div id="chart-temperature" class="container box"></div>
+		
+		<script>
+			window.addEventListener('load', onLoad);
+			function onLoad(event) {
+				setupDOM();
+				initWebSocket();
+
+			}
+		</script>
+	</body>
+</html>
