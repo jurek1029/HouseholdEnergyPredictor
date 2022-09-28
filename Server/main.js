@@ -2,8 +2,46 @@ var http = require('http');
 var fs = require('fs');
 var path = require('path');
 const WebSocket = require('ws');
+const { PassThrough } = require('stream');
 const PORT = process.env.PORT || 80;
+const PREDCTION_LEN = 16;
+const MAX_NOW_VALUES = 2000;
+const MAX_MONTH_VALUES = 24/3 * 31 * 2;
 
+var values = {
+	msgType: "default",
+	temp: 22,
+	humi: 10,
+    load: 0,
+    predLoad: [0,0,0,0,0,0,0,0,0,0]
+};
+
+var pastValues;
+
+const storeData = (data, path) => {
+    try {
+        fs.writeFileSync(path, JSON.stringify(data))
+    } catch (err) {
+        console.error(err)
+    }
+}
+
+const loadData = (path) => {
+    try {
+        return fs.readFileSync(path, 'utf8')
+    } catch (err) {
+        console.error(err)
+        return false
+    }
+}
+
+function setupData(){
+    pastValues = JSON.parse(loadData("monthly.data"));
+}
+
+function saveData(){
+    storeData(pastValues,"monthly.data");
+}
 
 var server = http.createServer(function (request, response) {
     console.log('request ', request.url);
@@ -79,7 +117,7 @@ var server = http.createServer(function (request, response) {
 
 //server.listen(PORT);
 console.log('Server running at http://127.0.0.1:80/');
-
+setupData();
 
 
 const wsServer = new WebSocket.Server({
@@ -87,48 +125,66 @@ const wsServer = new WebSocket.Server({
   server: server
 });
 
-var values = {
-	msgType: "default",
-	temp: 22,
-	humi: 10,
-    load: 0,
-    predLoad: [0,0,0,0,0,0,0,0,0,0]
-};
+function updateNow(key,value){
+    if(pastValues[key].length > MAX_NOW_VALUES){
+        pastValues[key].shift();
+    }
+    pastValues[key].push(value)
+    saveData();
+}
+
+function updatePredNow(values){
+    if(pastValues["predNow"].length > MAX_NOW_VALUES + PREDCTION_LEN){
+        pastValues["predNow"].shift();
+    }
+    //overrite last 15 predictions and add new;
+    for(let i = 0; i < PREDCTION_LEN; i++)
+    pastValues["predNow"][pastValues["predNow"].length - PREDCTION_LEN + 1 + i] = values[i];
+    saveData();
+}
 
 let sockets = [];
 wsServer.on('connection', function(socket) {
   sockets.push(socket);
 
-  socket.on('message', function(msg) {
-	  
-    try{
-        var data = JSON.parse(msg);
-        if(data.type == "getValues"){
-            values.msgType = "getValues";
-            socket.send(JSON.stringify(values));
+    socket.on('message', function(msg) {
+        
+        try{
+            var data = JSON.parse(msg);
+            if(data.type == "getValues"){
+                values.msgType = "getValues";
+                socket.send(JSON.stringify(values));
+            }
+            else if(data.type == "getPastValues"){
+                values.msgType = "getPastValues";
+                socket.send(JSON.stringify(pastValues));
+            }
+            else if(data.type == "load"){
+                values.load = data.value;
+                updateNow("loadNow",data.value);
+            }
+            else if(data.type == "temp"){
+                values.temp = data.value;
+                updateNow("tempNow",data.value);
+            }
+            else if(data.type == "humi"){
+                values.humi = data.value;
+            }
+            else if(data.type == "pred"){
+                values.predLoad = data.value;
+                updatePredNow(data.value);
+            }
+            else{
+                console.log(`msg: ${msg}`);
+            }
         }
-        else if(data.type == "load"){
-            values.load = data.value;
-        }
-        else if(data.type == "temp"){
-            values.temp = data.value;
-        }
-        else if(data.type == "humi"){
-            values.humi = data.value;
-        }
-        else if(data.type == "pred"){
-            values.predLoad = data.value;
-        }
-        else{
+        catch(e){
+            console.log(e);
+            console.log("Recived message that is not a valid JSON");
             console.log(`msg: ${msg}`);
         }
-    }
-    catch(e){
-        console.log("Recived message that is not a valid JSON");
-        console.log(`msg: ${msg}`);
-    }
-     
-  });
+        
+    });
 
   // When a socket closes, or disconnects, remove it from the array.
   socket.on('close', function() {

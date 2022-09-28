@@ -239,7 +239,7 @@ namespace LoadPrediction{
         //TODO temp opening and closing waiting for beter esp32 with free adc1 pin
         websocket::openWebSocket();
         vTaskDelay(300 / portTICK_PERIOD_MS);
-        char data[OUTPUT_LEN*7 + 40];
+        char data[OUTPUT_LEN*8 + 40];
         int len = sprintf(data, "{\"type\":\"load\",\"value\":%f}", load);
         websocket::sendData(data,len);
 
@@ -249,7 +249,7 @@ namespace LoadPrediction{
         len = sprintf(data, "{\"type\":\"humi\",\"value\":%f}", humi);
         websocket::sendData(data,len);
 
-        char s_pred[OUTPUT_LEN*7 + 7];
+        char s_pred[OUTPUT_LEN*8 + 8];
 
         int j = 0;
         for (int i = 0; i < OUTPUT_LEN; i++){

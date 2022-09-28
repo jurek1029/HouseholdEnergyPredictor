@@ -134,7 +134,11 @@ function setupCharts(){
 
 function setupDOM(){
     setupBackgroudVideo();
-    setupCharts();            
+    setupCharts();   
+    let data={
+        type:"getPastValues"
+    }
+    websocket.send(JSON.stringify(data));         
 }
 
 function initWebSocket() {
@@ -170,6 +174,12 @@ function onMessage(event) {
             } else {
                 chartPNow.series[0].addPoint([(new Date()).getTime(), data.load], true, false, true);
             }
+        }
+        else if(data.msgType == "getPastValues"){
+            if(chartTNow.series[0].data.length > 2000) {
+                chartTNow.series[0].addPoint([(new Date()).getTime(), data.temp], true, true, true);
+            }
+
         }
     }
     catch(e){
