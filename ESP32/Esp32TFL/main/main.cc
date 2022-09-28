@@ -25,7 +25,7 @@ void setup(){
 
 void loop(){
     auto outData = LoadPrediction::predictNextLoad();
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
 }
 
 

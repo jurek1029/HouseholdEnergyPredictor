@@ -26,6 +26,7 @@
 
 #define ADC2_CHANNEL    ADC2_CHANNEL_3
 #define INPUT_LEN 40
+#define OUTPUT_LEN 16
 #define STORAGE_NAMESPACE "storage"
 #define WEBSOCKET_URI "ws://192.168.1.13"
 
@@ -48,7 +49,6 @@ namespace LoadPrediction{
     float pastExpSmoothValues[INPUT_LEN] = {0};
     float pastTempValues[INPUT_LEN] = {0};
     float pastWeekPercValues[INPUT_LEN] = {0};
-
 
     esp_err_t loadValuesFromNVS(const char* name, void* value){  
         nvs_handle_t  handle;
@@ -179,7 +179,7 @@ namespace LoadPrediction{
         websocket::setupWebSocket(WEBSOCKET_URI, &webSocketMessageHandler);
     }
 
-    std::unique_ptr<float[]> invokeModel(float* inputData){
+    std::shared_ptr<float[]> invokeModel(float* inputData){
         for(int i = 0; i < inputSize; i ++){
             input->data.int8[i] = inputData[i] / input->params.scale + input->params.zero_point;
             //input->data.f[i] = float(1.);
@@ -193,7 +193,7 @@ namespace LoadPrediction{
             return nullptr;
         }
 
-        std::unique_ptr<float[]> outData( new float[outputSize]);
+        std::shared_ptr<float[]> outData( new float[outputSize]);
         for(int i = 0; i < outputSize; i++){
             float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
             outData[i] = f;
@@ -207,7 +207,7 @@ namespace LoadPrediction{
         return outData;
     }
 
-    std::unique_ptr<float[]> invokeModel(float* inputDataEnergy, float* inputDataExpSmooth, float* inputDataTemp, float* inputDataWeekPer){
+    std::shared_ptr<float[]> invokeModel(float* inputDataEnergy, float* inputDataExpSmooth, float* inputDataTemp, float* inputDataWeekPer){
         for(int i = 0; i < inputSize / 4; i ++){
             input->data.int8[i * 4]     = inputDataEnergy[i] / input->params.scale + input->params.zero_point;
             input->data.int8[i * 4 + 1] = inputDataExpSmooth[i] / input->params.scale + input->params.zero_point;
@@ -221,7 +221,7 @@ namespace LoadPrediction{
             return nullptr;
         }
 
-        std::unique_ptr<float[]> outData( new float[outputSize]);
+        std::shared_ptr<float[]> outData( new float[outputSize]);
         for(int i = 0; i < outputSize; i++){
             float f = (float(output->data.int8[i]) - output->params.zero_point) * output->params.scale;
             outData[i] = f;
@@ -235,16 +235,47 @@ namespace LoadPrediction{
         return outData;
     }
 
-    std::unique_ptr<float[]> predictNextLoad(){
+    void sendDataToServer(float load, float temp, float humi, std::shared_ptr<float[]> prediction){
+        //TODO temp opening and closing waiting for beter esp32 with free adc1 pin
+        websocket::openWebSocket();
+        vTaskDelay(300 / portTICK_PERIOD_MS);
+        char data[OUTPUT_LEN*7 + 40];
+        int len = sprintf(data, "{\"type\":\"load\",\"value\":%f}", load);
+        websocket::sendData(data,len);
+
+        len = sprintf(data, "{\"type\":\"temp\",\"value\":%f}", temp);
+        websocket::sendData(data,len);
+
+        len = sprintf(data, "{\"type\":\"humi\",\"value\":%f}", humi);
+        websocket::sendData(data,len);
+
+        char s_pred[OUTPUT_LEN*7 + 7];
+
+        int j = 0;
+        for (int i = 0; i < OUTPUT_LEN; i++){
+            if(i != OUTPUT_LEN - 1){
+                j += sprintf(s_pred+j, "%6.4f,",prediction[i]);
+            }
+            else{
+                j += sprintf(s_pred+j, "%6.4f",prediction[i]);
+            }
+        }
+        
+        printf("format: %s", s_pred);
+
+        len = sprintf(data, "{\"type\":\"pred\",\"value\":[%s]}", s_pred);
+        websocket::sendData(data,len);
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+        websocket::closeWebSocket();
+    }
+
+    std::shared_ptr<float[]> predictNextLoad(){
 
         moveValuesToPast();
 
         // TODO Read real power demand in kWh
-        //esp_wifi_stop();
         uint32_t val = readAnalogADC2(ADC2_CHANNEL);
-        //esp_wifi_start();
         
-
         float expValue = expSmoothing.next(val);
 
         dht11_reading dth11_val = DHT11_read();
@@ -270,11 +301,10 @@ namespace LoadPrediction{
         #endif
         
         auto outData = invokeModel(pastEnergyValues, pastExpSmoothValues, pastTempValues, pastWeekPercValues);
-
         saveAllValues();
-        char data[32];
-        int len = sprintf(data, "hello analog V: %d", val);
-        websocket::sendDataADC2Clear(data,len);
+        
+        sendDataToServer((float)val, dth11_val.temperature, dth11_val.humidity, outData);
+
         return outData;
     } 
 

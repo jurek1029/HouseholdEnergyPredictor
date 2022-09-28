@@ -1,4 +1,8 @@
-var chartT;
+var chartTNow;
+var chartTMonth;
+var chartPNow;
+var chartPMonth;
+var chartPPMonth;
 //var gateway = `ws://stocc.ddns.net:8081/`;
 //var gateway = `wss://stodola-control-center.herokuapp.com:5000/`;
 var gateway = location.origin.replace(/^http/, 'ws')
@@ -16,17 +20,17 @@ function setupBackgroudVideo(){
     document.getElementById("vid").appendChild(video);
 }
 
-function setupChart(){
-    chartT = new Highcharts.Chart({
-        chart:{ renderTo : 'chart-temperature' },
-        title: { text: 'Temperatura ESP32' },
+function setupCharts(){
+    chartTNow = new Highcharts.Chart({
+        chart:{ renderTo : 'chart-temperature-now' },
+        title: { text: 'Temperatura teraz ESP32' },
         series: [{
-        showInLegend: false,
-        data: []
+            showInLegend: false,
+            data: []
         }],
         plotOptions: {
-        line: { animation: false,
-            dataLabels: { enabled: true }
+            line: { animation: false,
+                dataLabels: { enabled: true }
         },
         series: { color: '#059e8a' }
         },
@@ -34,16 +38,103 @@ function setupChart(){
         dateTimeLabelFormats: { second: '%H:%M:%S' }
         },
         yAxis: {
-        title: { text: 'Temperatura &deg;C' }
-        //title: { text: 'Temperature (Fahrenheit)' }
+            title: { text: 'Temperatura &deg;C' }
+            },
+        credits: { enabled: false }
+    });
+
+    chartTMonth = new Highcharts.Chart({
+        chart:{ renderTo : 'chart-temperature-month' },
+        title: { text: 'Temperatura ostatni miesiac ESP32' },
+        series: [{
+            showInLegend: false,
+            data: []
+        }],
+        plotOptions: {
+            line: { animation: false,
+                dataLabels: { enabled: true }
         },
+        series: { color: '#059e8a' }
+        },
+        xAxis: { type: 'datetime',
+        dateTimeLabelFormats: { second: '%b-%e %H:%M' }
+        },
+        yAxis: {
+            title: { text: 'Temperatura &deg;C' }
+            },
+        credits: { enabled: false }
+    });
+
+    chartPNow = new Highcharts.Chart({
+        chart:{ renderTo : 'chart-power-now' },
+        title: { text: 'Moc pobierana teraz ESP32' },
+        series: [{
+            showInLegend: false,
+            data: []
+        }],
+        plotOptions: {
+            line: { animation: false,
+                dataLabels: { enabled: true }
+        },
+        series: { color: '#059e8a' }
+        },
+        xAxis: { type: 'datetime',
+        dateTimeLabelFormats: { second: '%H:%M:%S' }
+        },
+        yAxis: {
+            title: { text: 'Moc kWh' }
+            },
+        credits: { enabled: false }
+    });
+
+    chartPMonth = new Highcharts.Chart({
+        chart:{ renderTo : 'chart-power-month' },
+        title: { text: 'Moc pobierana ostatni miesiac ESP32' },
+        series: [{
+            showInLegend: false,
+            data: []
+        }],
+        plotOptions: {
+            line: { animation: false,
+                dataLabels: { enabled: true }
+        },
+        series: { color: '#059e8a' }
+        },
+        xAxis: { type: 'datetime',
+        dateTimeLabelFormats: { second: '%b-%e %H:%M' }
+        },
+        yAxis: {
+            title: { text: 'Moc kWh' }
+            },
+        credits: { enabled: false }
+    });
+
+    chartPPMonth = new Highcharts.Chart({
+        chart:{ renderTo : 'chart-power-pred-month' },
+        title: { text: 'Moc pobierana predykcja ostatni miesiac ESP32' },
+        series: [{
+            showInLegend: false,
+            data: []
+        }],
+        plotOptions: {
+            line: { animation: false,
+                dataLabels: { enabled: true }
+        },
+        series: { color: '#059e8a' }
+        },
+        xAxis: { type: 'datetime',
+        dateTimeLabelFormats: { second: '%b-%e %H:%M' }
+        },
+        yAxis: {
+            title: { text: 'Moc kWh' }
+            },
         credits: { enabled: false }
     });
 }
 
 function setupDOM(){
     setupBackgroudVideo();
-    setupChart();            
+    setupCharts();            
 }
 
 function initWebSocket() {
@@ -62,22 +153,34 @@ function onClose(event) {
     setTimeout(initWebSocket, 2000);
 }
 function onMessage(event) {
-    if(event.data == "ON" || event.data == "OFF" || event.data == "wifi") {}
-    else{
+    try{
         const data = JSON.parse(event.data);
         if(data.msgType == "getValues"){
             document.getElementById('temp').innerHTML = data.temp.toFixed(2);
             document.getElementById('humi').innerHTML = data.humi;
             
-            if(chartT.series[0].data.length > 2000) {
-                chartT.series[0].addPoint([(new Date()).getTime(), data.temp], true, true, true);
+            if(chartTNow.series[0].data.length > 2000) {
+                chartTNow.series[0].addPoint([(new Date()).getTime(), data.temp], true, true, true);
             } else {
-                chartT.series[0].addPoint([(new Date()).getTime(), data.temp], true, false, true);
+                chartTNow.series[0].addPoint([(new Date()).getTime(), data.temp], true, false, true);
+            }
+
+            if(chartPNow.series[0].data.length > 2000) {
+                chartPNow.series[0].addPoint([(new Date()).getTime(), data.load], true, true, true);
+            } else {
+                chartPNow.series[0].addPoint([(new Date()).getTime(), data.load], true, false, true);
             }
         }
     }
+    catch(e){
+        console.log("Server message is not a JSON message");
+    }
+    
 }
 
 function getData() {
-    websocket.send("getValues");
+    let data={
+        type:"getValues"
+    }
+    websocket.send(JSON.stringify(data));
 }

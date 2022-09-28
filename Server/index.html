@@ -22,8 +22,17 @@
 			</ul-->		
 		</div>
 		<br><br>
-		<div id="chart-temperature" class="container box"></div>
-		
+		<ul>
+			<li><div id="chart-temperature-now" class="container box"></div></li>
+			<li><div id="chart-temperature-month" class="container box"></div></li>
+		</ul>
+		<ul>
+			<li><div id="chart-power-now" class="container box"></div></li>
+			<li><div id="chart-power-month" class="container box"></div></li>
+		</ul>
+		<ul>
+			<li><div id="chart-power-pred-month" class="container box"></div></li>
+		</ul>
 		<script>
 			window.addEventListener('load', onLoad);
 			function onLoad(event) {

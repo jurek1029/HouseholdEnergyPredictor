@@ -8,8 +8,8 @@
 namespace LoadPrediction{
 
     void setupTFLiteLoadPrediction();
-    std::unique_ptr<float[]> invokeModel(float* inputData);
-    std::unique_ptr<float[]> predictNextLoad(); 
+    std::shared_ptr<float[]> invokeModel(float* inputData);
+    std::shared_ptr<float[]> predictNextLoad(); 
     void removeFromNVS();
 }
 #endif  // LOAD_PREDICTION_H_

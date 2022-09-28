@@ -91,6 +91,8 @@ var values = {
 	msgType: "default",
 	temp: 22,
 	humi: 10,
+    load: 0,
+    predLoad: [0,0,0,0,0,0,0,0,0,0]
 };
 
 let sockets = [];
@@ -98,11 +100,34 @@ wsServer.on('connection', function(socket) {
   sockets.push(socket);
 
   socket.on('message', function(msg) {
-	  console.log(`msg: ${msg}`)
-      if(msg == "getValues"){
-		values.msgType = "getValues";
-		socket.send(JSON.stringify(values));
-	  }
+	  
+    try{
+        var data = JSON.parse(msg);
+        if(data.type == "getValues"){
+            values.msgType = "getValues";
+            socket.send(JSON.stringify(values));
+        }
+        else if(data.type == "load"){
+            values.load = data.value;
+        }
+        else if(data.type == "temp"){
+            values.temp = data.value;
+        }
+        else if(data.type == "humi"){
+            values.humi = data.value;
+        }
+        else if(data.type == "pred"){
+            values.predLoad = data.value;
+        }
+        else{
+            console.log(`msg: ${msg}`);
+        }
+    }
+    catch(e){
+        console.log("Recived message that is not a valid JSON");
+        console.log(`msg: ${msg}`);
+    }
+     
   });
 
   // When a socket closes, or disconnects, remove it from the array.
