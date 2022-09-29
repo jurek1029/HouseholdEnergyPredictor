@@ -135,10 +135,7 @@ function setupCharts(){
 function setupDOM(){
     setupBackgroudVideo();
     setupCharts();   
-    let data={
-        type:"getPastValues"
-    }
-    websocket.send(JSON.stringify(data));         
+          
 }
 
 function initWebSocket() {
@@ -151,6 +148,10 @@ function initWebSocket() {
 function onOpen(event) {
     console.log('Connection opened');
     setInterval(function() { getData(); }, 1500); //1500mSeconds update rate
+    let data={
+        type:"getPastValues"
+    }
+    websocket.send(JSON.stringify(data));   
 }
 function onClose(event) {
     console.log('Connection closed');
@@ -176,13 +177,14 @@ function onMessage(event) {
             }
         }
         else if(data.msgType == "getPastValues"){
-            if(chartTNow.series[0].data.length > 2000) {
-                chartTNow.series[0].addPoint([(new Date()).getTime(), data.temp], true, true, true);
-            }
+            console.log("loadingData");
+            chartTNow.series[0].setData(data.tempNow);
+            chartPNow.series[0].setData(data.loadNow);
 
         }
     }
     catch(e){
+        console.log(e);
         console.log("Server message is not a JSON message");
     }
     

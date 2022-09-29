@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 80;
 const PREDCTION_LEN = 16;
 const MAX_NOW_VALUES = 2000;
 const MAX_MONTH_VALUES = 24/3 * 31 * 2;
+const AGREGATE_IN = 3;
 
 var values = {
 	msgType: "default",
@@ -128,18 +129,23 @@ const wsServer = new WebSocket.Server({
 function updateNow(key,value){
     if(pastValues[key].length > MAX_NOW_VALUES){
         pastValues[key].shift();
+       // pastValues[key+"Time"].shift();
     }
-    pastValues[key].push(value)
+    pastValues[key].push([(new Date()).getTime(),value]);
+    //pastValues[key+"Time"].push((new Date()).getTime());
     saveData();
 }
 
 function updatePredNow(values){
-    if(pastValues["predNow"].length > MAX_NOW_VALUES + PREDCTION_LEN){
-        pastValues["predNow"].shift();
+    if(pastValues.predNow.length > MAX_NOW_VALUES + PREDCTION_LEN){
+        pastValues.predNow.shift();
+        //pastValues.predNowTime.shift();
     }
     //overrite last 15 predictions and add new;
-    for(let i = 0; i < PREDCTION_LEN; i++)
-    pastValues["predNow"][pastValues["predNow"].length - PREDCTION_LEN + 1 + i] = values[i];
+    for(let i = 0; i < PREDCTION_LEN; i++){
+        pastValues.predNow[pastValues.predNow.length - PREDCTION_LEN + 1 + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, values[i]];
+        //pastValues.predNowTime[pastValues.predNowTime.length - PREDCTION_LEN + 1 + i] = (new Date()).getTime() + 1000*60*60*AGREGATE_IN*i;
+    }
     saveData();
 }
 
@@ -156,7 +162,7 @@ wsServer.on('connection', function(socket) {
                 socket.send(JSON.stringify(values));
             }
             else if(data.type == "getPastValues"){
-                values.msgType = "getPastValues";
+                console.log("sending past data");
                 socket.send(JSON.stringify(pastValues));
             }
             else if(data.type == "load"){
