@@ -8,6 +8,11 @@ var chartPPMonth;
 var gateway = location.origin.replace(/^http/, 'ws')
 var websocket;
 
+var PREDCTION_LEN = 16;
+var AGREGATE_IN = 3;
+
+var predChartData = [];
+
 function setupBackgroudVideo(){
     var video = document.createElement('video');
     var t = Math.floor(Math.random() * 1663);
@@ -180,7 +185,22 @@ function onMessage(event) {
             console.log("loadingData");
             chartTNow.series[0].setData(data.tempNow);
             chartPNow.series[0].setData(data.loadNow);
-
+            console.log(data.tempMonth)
+            chartTMonth.series[0].setData(data.tempMonth);
+            chartPMonth.series[0].setData(data.loadMonth);
+            predChartData = data.predNow;
+            chartPPMonth.series[0].setData(data.predNow);
+        }
+        else if(data.msgType == "predUpdate"){
+            let len = chartPPMonth.series[0].data.length;
+            for(var i = 0; i < PREDCTION_LEN; i++){
+                predChartData[len - PREDCTION_LEN + 1 + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, data.value[i]];
+            }
+            chartPPMonth.series[0].setData(predChartData);
+        }
+        else if(data.msgType == "updateModelConsts"){
+            PREDCTION_LEN = data.predLen;
+            AGREGATE_IN = data.agreg;
         }
     }
     catch(e){

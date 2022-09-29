@@ -9,12 +9,27 @@ const MAX_NOW_VALUES = 2000;
 const MAX_MONTH_VALUES = 24/3 * 31 * 2;
 const AGREGATE_IN = 3;
 
+var lastAgregation = {
+    load: 0,
+    temp: 0,
+};
+
+var lastAgregationValue = {
+    load: 0,
+    temp: 0,
+};
+
+var lastAgregationValueCount = {
+    load: 0,
+    temp: 0,
+};
+
+
 var values = {
 	msgType: "default",
 	temp: 22,
 	humi: 10,
     load: 0,
-    predLoad: [0,0,0,0,0,0,0,0,0,0]
 };
 
 var pastValues;
@@ -127,24 +142,32 @@ const wsServer = new WebSocket.Server({
 });
 
 function updateNow(key,value){
-    if(pastValues[key].length > MAX_NOW_VALUES){
-        pastValues[key].shift();
-       // pastValues[key+"Time"].shift();
+    if(pastValues[key+"Now"].length > MAX_NOW_VALUES){
+        pastValues[key+"Now"].shift();
     }
-    pastValues[key].push([(new Date()).getTime(),value]);
-    //pastValues[key+"Time"].push((new Date()).getTime());
+    pastValues[key+"Now"].push([(new Date()).getTime(),value]);
+
+    lastAgregationValue[key] += value;
+    lastAgregationValueCount[key] += 1;
+    if((new Date()).getTime() > lastAgregation[key] + 1000*60*60*AGREGATE_IN){
+        if(pastValues[key+"Month"].length > MAX_MONTH_VALUES){
+            pastValues[key+"Month"].shift();
+        }
+        pastValues[key+"Month"].push([(new Date()).getTime(), lastAgregationValue[key] / lastAgregationValueCount[key]]);
+        lastAgregationValue[key] = 0 ;
+        lastAgregationValueCount[key] = 0;
+        lastAgregation[key] = (new Date()).getTime();
+    }
     saveData();
 }
 
 function updatePredNow(values){
     if(pastValues.predNow.length > MAX_NOW_VALUES + PREDCTION_LEN){
         pastValues.predNow.shift();
-        //pastValues.predNowTime.shift();
     }
     //overrite last 15 predictions and add new;
     for(let i = 0; i < PREDCTION_LEN; i++){
         pastValues.predNow[pastValues.predNow.length - PREDCTION_LEN + 1 + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, values[i]];
-        //pastValues.predNowTime[pastValues.predNowTime.length - PREDCTION_LEN + 1 + i] = (new Date()).getTime() + 1000*60*60*AGREGATE_IN*i;
     }
     saveData();
 }
@@ -167,11 +190,11 @@ wsServer.on('connection', function(socket) {
             }
             else if(data.type == "load"){
                 values.load = data.value;
-                updateNow("loadNow",data.value);
+                updateNow("load",data.value);
             }
             else if(data.type == "temp"){
                 values.temp = data.value;
-                updateNow("tempNow",data.value);
+                updateNow("temp",data.value);
             }
             else if(data.type == "humi"){
                 values.humi = data.value;
@@ -179,6 +202,15 @@ wsServer.on('connection', function(socket) {
             else if(data.type == "pred"){
                 values.predLoad = data.value;
                 updatePredNow(data.value);
+                d = {
+                    msgType: "predUpdate",
+                    value: data.value
+                };
+                sockets.forEach(function(s){
+                    if (s != socket){
+                        s.send(JSON.stringify(d));
+                    }
+                });
             }
             else{
                 console.log(`msg: ${msg}`);
