@@ -1,0 +1,8 @@
+https://api.solcast.com.au/world_pv_power/estimated_actuals?latitude=52.105014&longitude=21.125276&capacity=5&tilt=42&azimuth=180&hours=168
+
+&format=json
+
+Api key
+q_m_SaOSVkHui2bOMrGgzY6T68TbEpN7
+
+https://docs.solcast.com.au/#intro

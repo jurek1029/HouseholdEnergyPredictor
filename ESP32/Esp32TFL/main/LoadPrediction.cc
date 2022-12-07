@@ -24,7 +24,9 @@
 
 #include "esp_websocket_client.h"
 
-#define ADC2_CHANNEL    ADC2_CHANNEL_3
+//#define ADC2_CHANNEL    ADC2_CHANNEL_3
+#define LOAD_CHANNEL    ADC1_CHANNEL_0
+#define DTH_CHANNEL     GPIO_NUM_4
 #define INPUT_LEN 40
 #define OUTPUT_LEN 16
 #define STORAGE_NAMESPACE "storage"
@@ -173,10 +175,12 @@ namespace LoadPrediction{
         #endif
 
         setupTFLite();
-        setupADC2(ADC2_CHANNEL);
-        DHT11_init(GPIO_NUM_2);
+        setupADC1(LOAD_CHANNEL);
+        //setupADC2(ADC2_CHANNEL);
+        DHT11_init(DHT_CHANNEL);
         NTPTime::setupNTPTime();
         websocket::setupWebSocket(WEBSOCKET_URI, &webSocketMessageHandler);
+        websocket::openWebSocket();
     }
 
     std::shared_ptr<float[]> invokeModel(float* inputData){
@@ -237,7 +241,7 @@ namespace LoadPrediction{
 
     void sendDataToServer(float load, float temp, float humi, std::shared_ptr<float[]> prediction){
         //TODO temp opening and closing waiting for beter esp32 with free adc1 pin
-        websocket::openWebSocket();
+        //websocket::openWebSocket();
         vTaskDelay(300 / portTICK_PERIOD_MS);
         char data[OUTPUT_LEN*8 + 40];
         int len = sprintf(data, "{\"type\":\"load\",\"value\":%f}", load);
@@ -260,13 +264,15 @@ namespace LoadPrediction{
                 j += sprintf(s_pred+j, "%6.4f",prediction[i]);
             }
         }
-        
-        printf("format: %s", s_pred);
+
+        #ifdef DEBUG_PRINT_LOGS
+        printf("formated values to JSON: %s\n", s_pred);
+        #endif
 
         len = sprintf(data, "{\"type\":\"pred\",\"value\":[%s]}", s_pred);
         websocket::sendData(data,len);
-        vTaskDelay(200 / portTICK_PERIOD_MS);
-        websocket::closeWebSocket();
+        //vTaskDelay(200 / portTICK_PERIOD_MS);
+        //websocket::closeWebSocket();
     }
 
     std::shared_ptr<float[]> predictNextLoad(){
@@ -274,7 +280,7 @@ namespace LoadPrediction{
         moveValuesToPast();
 
         // TODO Read real power demand in kWh
-        uint32_t val = readAnalogADC2(ADC2_CHANNEL);
+        uint32_t val = readAnalogADC1(LOAD_CHANNEL);
         
         float expValue = expSmoothing.next(val);
 
