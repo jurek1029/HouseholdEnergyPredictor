@@ -1,0 +1,239 @@
+	 day: 0
+LinReg Training time: 4.222s 1.0215133623884447
+
+SGDReg Training time: 0.058s 1.0198273189684237
+
+ElaNet Training time: 0.051s 1.4008577477232245
+
+Lasso Training time: 0.050s 1.526807186852479
+
+Ridge Training time: 0.049s 1.0214050937319334
+
+SVR Training time: 0.199s 0.8002770673736854
+
+TreeReg Training time: 0.155s 1.0916550468738424
+
+ExTreeR Training time: 0.838s 0.9512083319087399
+
+ForestR Training time: 1.159s 0.9366543041500268
+
+XGBReg Training time: 0.688s 0.8868961292596937
+
+KNeighR Training time: 0.054s 0.9526930667392598
+
+################################
+	 day: 1
+LinReg Training time: 0.049s 0.9419574892229294
+
+SGDReg Training time: 0.058s 0.9409530299821327
+
+ElaNet Training time: 0.061s 1.396644551760096
+
+Lasso Training time: 0.056s 1.522214153018421
+
+Ridge Training time: 0.050s 0.9417039479824109
+
+SVR Training time: 0.199s 0.7795387628471565
+
+TreeReg Training time: 0.059s 1.1343218301354197
+
+ExTreeR Training time: 1.022s 0.8052693326506144
+
+ForestR Training time: 1.156s 0.8439169669931724
+
+XGBReg Training time: 0.393s 0.7521933546358952
+
+KNeighR Training time: 0.057s 0.9195831177770938
+
+################################
+	 day: 2
+LinReg Training time: 0.048s 0.918062846048205
+
+SGDReg Training time: 0.055s 0.9176417769580283
+
+ElaNet Training time: 0.053s 1.3968451993634077
+
+Lasso Training time: 0.055s 1.5220354926031763
+
+Ridge Training time: 0.054s 0.9177405016611209
+
+SVR Training time: 0.221s 0.7837311814844845
+
+TreeReg Training time: 0.061s 1.0647627102482344
+
+ExTreeR Training time: 0.992s 0.7604518660466497
+
+ForestR Training time: 1.637s 0.826622538983834
+
+XGBReg Training time: 0.585s 0.654478442383107
+
+KNeighR Training time: 0.058s 0.9230878619313767
+
+################################
+	 day: 3
+LinReg Training time: 0.048s 0.9072229636553961
+
+SGDReg Training time: 0.060s 0.9062175334253435
+
+ElaNet Training time: 0.057s 1.3962400453902335
+
+Lasso Training time: 0.051s 1.5210356923762813
+
+Ridge Training time: 0.053s 0.906860073222243
+
+SVR Training time: 0.389s 0.7883120505879939
+
+TreeReg Training time: 0.080s 0.9786428029052189
+
+ExTreeR Training time: 1.138s 0.7647133616345381
+
+ForestR Training time: 1.521s 0.8321816594896256
+
+XGBReg Training time: 0.549s 0.7659202753050798
+
+KNeighR Training time: 0.054s 0.9575516793153899
+
+################################
+	 day: 4
+LinReg Training time: 0.048s 0.897091114359106
+
+SGDReg Training time: 0.057s 0.8974517303457953
+
+ElaNet Training time: 0.049s 1.3960910325117244
+
+Lasso Training time: 0.053s 1.520536735157299
+
+Ridge Training time: 0.059s 0.8966867663285949
+
+SVR Training time: 0.220s 0.8105141999709777
+
+TreeReg Training time: 0.076s 1.0358255508631098
+
+ExTreeR Training time: 1.129s 0.7544356188818213
+
+ForestR Training time: 1.559s 0.8152814944827996
+
+XGBReg Training time: 0.531s 0.748777681881732
+
+KNeighR Training time: 0.057s 0.9861441597646479
+
+################################
+	 day: 5
+LinReg Training time: 0.047s 0.8943371267192264
+
+SGDReg Training time: 0.055s 0.8936740285747561
+
+ElaNet Training time: 0.051s 1.395153854326597
+
+Lasso Training time: 0.058s 1.5193421585301283
+
+Ridge Training time: 0.050s 0.8939256461111611
+
+SVR Training time: 0.256s 0.8319309096555834
+
+TreeReg Training time: 0.067s 1.066956603087791
+
+ExTreeR Training time: 1.203s 0.750471988539178
+
+ForestR Training time: 1.469s 0.8254346988359522
+
+XGBReg Training time: 0.732s 0.6079287247437136
+
+KNeighR Training time: 0.063s 1.0083067775677015
+
+################################
+	 day: 6
+LinReg Training time: 0.050s 0.8895844326710558
+
+SGDReg Training time: 0.063s 0.8895050962670406
+
+ElaNet Training time: 0.066s 1.3946422730047434
+
+Lasso Training time: 0.058s 1.5186642500197287
+
+Ridge Training time: 0.062s 0.8891618072891487
+
+SVR Training time: 0.303s 0.8493870477993882
+
+TreeReg Training time: 0.073s 1.010385573742103
+
+ExTreeR Training time: 1.386s 0.7491243404976269
+
+ForestR Training time: 1.989s 0.8300165699495047
+
+XGBReg Training time: 0.838s 0.7899135898539915
+
+KNeighR Training time: 0.060s 1.028684490786906
+
+################################
+	 day: 7
+LinReg Training time: 0.055s 0.8852491689051396
+
+SGDReg Training time: 0.066s 0.8859755138879233
+
+ElaNet Training time: 0.063s 1.3942310700262674
+
+Lasso Training time: 0.054s 1.5179219603829366
+
+Ridge Training time: 0.055s 0.88482151483687
+
+SVR Training time: 0.223s 0.8536504571521139
+
+TreeReg Training time: 0.078s 1.1653979526116638
+
+ExTreeR Training time: 1.317s 0.7398457096602755
+
+ForestR Training time: 2.073s 0.8341520842317
+
+XGBReg Training time: 0.751s 0.7200126200563848
+
+KNeighR Training time: 0.057s 1.0315105649823557
+
+################################
+	 day: 8
+LinReg Training time: 0.052s 0.8828819610754246
+
+SGDReg Training time: 0.055s 0.8841314190398094
+
+ElaNet Training time: 0.059s 1.395136033401974
+
+Lasso Training time: 0.053s 1.5185144447474088
+
+Ridge Training time: 0.047s 0.8824388203479915
+
+SVR Training time: 0.222s 0.8571609055236458
+
+TreeReg Training time: 0.065s 1.1394316973114218
+
+ExTreeR Training time: 1.092s 0.7228224215566229
+
+ForestR Training time: 1.903s 0.8304803014250768
+
+XGBReg Training time: 0.851s 0.7702272802340405
+
+KNeighR Training time: 0.066s 1.0652572779820664
+
+################################
+	 day: 9
+LinReg Training time: 0.049s 0.881150522753873
+
+SGDReg Training time: 0.055s 0.8837776238236816
+
+ElaNet Training time: 0.056s 1.3944129797753713
+
+Lasso Training time: 0.051s 1.5169761979023337
+
+Ridge Training time: 0.050s 0.880708579690045
+
+SVR Training time: 0.228s 0.8577566542288014
+
+TreeReg Training time: 0.073s 1.139851754032918
+
+ExTreeR Training time: 1.360s 0.7236900345012195
+
+ForestR Training time: 1.956s 0.820078163656474
+
+XGBReg Training time: 0.799s 0.76905518330688
+
+KNeighR Training time: 0.061s 1.074510513551233
+

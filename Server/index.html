@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<script src="https://code.highcharts.com/highcharts.js"></script>
+		<script src="index.js"></script>
+		<link rel="stylesheet" href="style.css">
+	</head>
+	<body>
+		<!--div class="video-background">
+			<div class="video-foreground" id="vid">
+			</div>
+		</div-->
+		<img src="solar-panel.jpeg" class="video-background" width="100%">
+		<h1> <b>ESP32 Home Center</b></h1>
+		<br><br>
+		<div class="box">
+			Temperatura: <span id="temp">0</span>&deg;C <br>
+			Wilgotno&#347;&#263;: <span id="humi">0</span>% <br>
+			<!--ul>
+				<li><span id="minutes"></span>Minutes</li>
+				<li><span id="seconds"></span>Seconds</li>
+			</ul-->		
+		</div>
+		<br><br>
+		<ul>
+			<li><div id="chart-temperature-now" class="container box"></div></li>
+			<li><div id="chart-temperature-month" class="container box"></div></li>
+		</ul>
+		<ul>
+			<li><div id="chart-power-now" class="container box"></div></li>
+			<li><div id="chart-power-month" class="container box"></div></li>
+		</ul>
+		<ul>
+			<li><div id="chart-power-pred-month" class="container box"></div></li>
+		</ul>
+		<ul>
+			<li><div id="chart-prod-pred-now" class="container box"></div></li>
+		</ul>
+		<script>
+			window.addEventListener('load', onLoad);
+			function onLoad(event) {
+				setupDOM();
+				initWebSocket();
+
+			}
+		</script>
+	</body>
+</html>
