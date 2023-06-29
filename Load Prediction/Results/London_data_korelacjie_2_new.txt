@@ -1,0 +1,11 @@
+sep=,
+energy           , 1.000000
+past_E_1_datapoint, 0.792734
+past_E_2_datapoints   , 0.672915
+past_E_same_time_1day , 0.578380
+past_E_3_datapoints  , 0.566899
+past_E_4_datapoints  , 0.483922
+dayPrecent       , 0.369249
+holiday_ind      ,-0.001803
+yearPrecent      ,-0.127959
+temperature      ,-0.208217

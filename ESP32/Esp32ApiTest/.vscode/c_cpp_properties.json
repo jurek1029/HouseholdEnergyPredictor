@@ -22,7 +22,7 @@
               },
             "compilerPath": "D:\\cygwin64\\bin\\gcc.exe",
             "cStandard": "c11",
-            "cppStandard": "c++17",
+            "cppStandard": "gnu++14",
             "intelliSenseMode": "linux-gcc-x64"
         }
     ],

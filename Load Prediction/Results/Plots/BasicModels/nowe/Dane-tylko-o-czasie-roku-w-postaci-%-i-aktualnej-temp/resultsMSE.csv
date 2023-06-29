@@ -1,0 +1,3 @@
+sep=,
+Regresji liniowej,Metoda gradientu prostego,ElasticNet,Lasso,Ridge,SVR,Drzewo decyzyjne,Losowy las z dopasowywaniem ilosci drzew,Losowy las,XGBoost,K najbliższych sąsiadów,label
+0.005001292875676575,0.005013363813392442,0.004603318635473203,0.004603318635473203,0.005001326810470417,0.004131387273688664,0.007434100745790298,0.005505567768547659,0.005487617678074286,0.004685684457519193,0.00448366262210987,Dane tylko o czasie roku w postaci % i aktualnej temp. 0
