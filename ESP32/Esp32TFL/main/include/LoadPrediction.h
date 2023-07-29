@@ -6,7 +6,7 @@
 #define DEBUG_PRINT_LOGS
 
 namespace LoadPrediction{
-
+    extern bool bInitialized;
     void setupTFLiteLoadPrediction();
     std::shared_ptr<float[]> invokeModel(float* inputData);
     std::shared_ptr<float[]> predictNextLoad(); 

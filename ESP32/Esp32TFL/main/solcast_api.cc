@@ -4,65 +4,126 @@
 #include "solcast_api.h"
 #include "http_request.h"
 #include "WebSocket.h"
+#include <string>
+
+#include "NVStorageHelper.h"
+
 
 namespace solcast{
 
+    solcast::SolcastApiData solcastData; 
+
     void webSocketMessageHandler(esp_websocket_event_data_t* data){
         printf("Message Handeled: %.*s \n", data->data_len, (char *)data->data_ptr);
+
+        if(data->data_len > SOLCAST_WEBSOCKET_TAG_LEN){
+            if(strncmp(SOLCAST_WEBSOCKET_API_KEY, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.webApiKey = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_API_KEY, sizeof(solcastData.webApiKey), &solcastData.webApiKey);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_AZIMUTH, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.azimuth = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_AZIMUTH, sizeof(solcastData.azimuth), &solcastData.azimuth);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_CAPACITY, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.capacity = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_CAPACITY, sizeof(solcastData.capacity), &solcastData.capacity);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_LATITUDE, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.latitude = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_LATITUDE, sizeof(solcastData.latitude), &solcastData.latitude);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_LONGITUDE, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.longitude = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_LONGITUDE, sizeof(solcastData.longitude), &solcastData.longitude);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_SEVER, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.webServer = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_SEVER, sizeof(solcastData.webServer), &solcastData.webServer);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_SEVER_PORT, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.webPort = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_SEVER_PORT, sizeof(solcastData.webPort), &solcastData.webPort);
+            }
+            else if(strncmp(SOLCAST_WEBSOCKET_TILT, data->data_ptr,SOLCAST_WEBSOCKET_TAG_LEN) == 0){
+                solcastData.tilt = const_cast<char*>(data->data_ptr + SOLCAST_WEBSOCKET_TAG_LEN);
+                NVStorageHelper::saveValuesToNVS(SOLCAST_WEBSOCKET_TILT, sizeof(solcastData.tilt), &solcastData.tilt);
+            }
+        }
     }
 
     void setupSolCastApi(){
         request::setupHttps();
         websocket::setupWebSocket(&webSocketMessageHandler);
         websocket::openWebSocket();
+
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_API_KEY, &solcastData.webApiKey);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_AZIMUTH, &solcastData.azimuth);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_CAPACITY, &solcastData.capacity);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_LATITUDE, &solcastData.latitude);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_LONGITUDE, &solcastData.longitude);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_SEVER, &solcastData.webServer);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_SEVER_PORT, &solcastData.webPort);
+        NVStorageHelper::loadValuesFromNVS(SOLCAST_WEBSOCKET_TILT, &solcastData.tilt);
     }
 
     void sendDataToServer(Data& APIdata){
         vTaskDelay(300 / portTICK_PERIOD_MS);
         int samples = APIdata.power.size();//atoi(apiConfigData.hours);
         
-        char data[samples*9 + 40];
-        char s_power[samples*9 + 9];
+        char data[samples*(6 + 8 + 20) + 40]; //4 characters [,], 8 coze %3.5f  20 coze data fromat 2023-07-16T20:30:00Z, has 20 char and 1 more for \0
 
-        int j = 0;
+        int pos = 0;
+        pos = sprintf(data, "{\"type\":\"power\",\"value\":[");
         for (int i = 0; i < samples; i++){
             if(i != samples - 1){
-                j += sprintf(s_power+j, "%3.5f,",APIdata.power[i]);
+                //asumption power generation dont exed 1000 units (kWh), 1MWh in 30h is risonable assumption
+                pos += sprintf(data+pos, "[\"%s\",%3.5f],",APIdata.time[i].c_str(),APIdata.power[i]);
             }
             else{
-                j += sprintf(s_power+j, "%3.5f",APIdata.power[i]);
+                pos += sprintf(data+pos, "[\"%s\",%3.5f]",APIdata.time[i].c_str(),APIdata.power[i]);
             }
         }
-
-        int len = sprintf(data, "{\"type\":\"power\",\"value\":[%s]}", s_power);
-        websocket::sendData(data,len);
-
-        // char s_time[samples*32 + 9];
-        // j = 0;
-        // for (int i = 0; i < samples; i++){
-        //     if(i != samples - 1){
-        //         j += sprintf(s_time+j, "%s,",APIdata.time[i].c_str());
-        //     }
-        //     else{
-        //         j += sprintf(s_time+j, "%s",APIdata.time[i].c_str());
-        //     }
-        // }
-
-        // len = sprintf(data, "{\"type\":\"power_time\",\"value\":[%s]}", s_time);
-        // websocket::sendData(data,len);
-        // #ifdef DEBUG_PRINT_LOGS
-        // printf("formated values to JSON: %s\n", s_pred);
-        // #endif
-
+        pos += sprintf(data+pos, "]}");
+        data[pos] = 0; //add string tremination character
+        #ifdef DEBUG_SOLCAST_API
+        printf("Solcast Api Json: %s\n", data);
+        #endif
+        websocket::sendData(data,pos);
        
     }
 
-    std::unique_ptr<Data> requestForecastData(SolcastApiData &&data){
-        std::unique_ptr<char> url = std::unique_ptr<char>(new char[200]);
-        sprintf(url.get(), WEB_URL, data.latitude, data.longitude, data.capacity, data.tilt, data.azimuth, data.hours);
-        std::unique_ptr<char> bufHeader = std::unique_ptr<char>(new char[strlen(url.get()) + strlen(HEADERS) + 16]);
-        sprintf(bufHeader.get(), "GET %s HTTP/1.1\r\n%s", url.get(), HEADERS);
-        std::unique_ptr<std::stringstream> ss = request::httpsGetRequest(request::UrlData(url,bufHeader));
+    std::unique_ptr<Data> requestForecastData(){
+        constexpr int MAX_URL_SIZE = 256;
+        constexpr int MAX_REQUEST_SIZE = 384;
+
+        char* urlBuff = new char[MAX_URL_SIZE];
+        char* requestBuff = new char[MAX_REQUEST_SIZE];
+
+        if(snprintf(urlBuff, MAX_URL_SIZE, WEB_URL,
+            solcastData.webServer.c_str(),
+            solcastData.latitude.c_str(),
+            solcastData.longitude.c_str(),
+            solcastData.capacity.c_str(),
+            solcastData.tilt.c_str(),
+            solcastData.azimuth.c_str(),
+            solcastData.hours.c_str()) < 0){
+                printf("[Error] Solcast Api URL buffer to small");
+                return nullptr;
+            }
+        
+        if(snprintf(requestBuff,MAX_REQUEST_SIZE, "GET %s HTTP/1.1\r\n" HEADERS,
+            urlBuff,
+            solcastData.webServer.c_str(),
+            solcastData.webApiKey.c_str()) < 0){
+                printf("[Error] Solcast Api Request buffer to small");
+                return nullptr;
+            }
+        
+        
+        std::unique_ptr<std::stringstream> ss = request::httpsGetRequest(request::UrlData(urlBuff,requestBuff));
+        delete urlBuff;
+        delete requestBuff;
         std::unique_ptr<Data> pData = parseCSVData(move(ss));
         sendDataToServer(*pData);
         return move(pData);

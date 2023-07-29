@@ -101,13 +101,13 @@ struct dht11_reading DHT11_read() {
     _sendStartSignal();
 
     if(_checkResponse() == DHT11_TIMEOUT_ERROR)
-        return last_read = _timeoutError();
+        return last_read;// = _timeoutError(); if error return last value
     
     /* Read response */
     for(int i = 0; i < 40; i++) {
         /* Initial data */
         if(_waitOrTimeout(50, 0) == DHT11_TIMEOUT_ERROR)
-            return last_read = _timeoutError();
+            return last_read; //= _timeoutError(); if error return last value
                 
         if(_waitOrTimeout(70, 1) > 28) {
             /* Bit received was a 1 */
@@ -124,6 +124,6 @@ struct dht11_reading DHT11_read() {
         last_read.humidity = data[0] + data[1]*0.1;
         return last_read;
     } else {
-        return last_read = _crcError();
+        return last_read ;//= _crcError(); if error return last value
     }
 }

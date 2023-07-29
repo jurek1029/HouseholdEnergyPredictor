@@ -4,7 +4,8 @@ var path = require('path');
 const WebSocket = require('ws');
 const { PassThrough } = require('stream');
 const PORT = process.env.PORT || 80;
-const PREDCTION_LEN = 16;
+//const PREDCTION_LEN = 16;
+//const POWER_PREDCTION_LEN = 25;
 const MAX_NOW_VALUES = 2000;
 const MAX_MONTH_VALUES = 24/3 * 31 * 2;
 const AGREGATE_IN = 3;
@@ -30,6 +31,7 @@ var values = {
 	temp: 22,
 	humi: 10,
     load: 0,
+    power:[],
 };
 
 var pastValues;
@@ -164,13 +166,32 @@ function updateNow(key,value){
 }
 
 function updatePredNow(values){
+    const PREDCTION_LEN = values.length;
     if(pastValues.predNow.length > MAX_NOW_VALUES + PREDCTION_LEN){
         pastValues.predNow.shift();
     }
     //overrite last 15 predictions and add new;
+    let baseStart = Math.max(pastValues.predNow.length - PREDCTION_LEN + 1,0);
     for(let i = 0; i < PREDCTION_LEN; i++){
-        pastValues.predNow[pastValues.predNow.length - PREDCTION_LEN + 1 + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, values[i]];
+        pastValues.predNow[baseStart + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, values[i]];
     }
+    saveData();
+}
+
+function updateProdPredNow(values){
+    //values is a arrya of paris [time,value] ["2023-07-16T21:00:00Z",0.00000]
+    //keep only MAX_NOW_VALUES in data if more rotate
+    const POWER_PREDCTION_LEN = values.length;
+    if(pastValues.powerNow.length > MAX_NOW_VALUES + POWER_PREDCTION_LEN){
+        pastValues.powerNow.shift();
+    }
+    //overrite last 24 predictions and add new;
+    let baseStart = Math.max(pastValues.powerNow.length - POWER_PREDCTION_LEN + 1,0);
+    for(let i = 0; i < POWER_PREDCTION_LEN; i++){
+        let time = new Date(values[i][0]);
+        pastValues.powerNow[baseStart + i] = [time.getTime(), values[i][1]];
+    }
+    console.log(pastValues.powerNow)
     saveData();
 }
 
@@ -202,21 +223,31 @@ wsServer.on('connection', function(socket) {
                 values.humi = data.value;
             }
             else if(data.type == "power"){
-                values.power = data.value;
-                updateNow("power",data.value);
+                //console.log("got power data");
+                //console.log(data.value);
+                let powerPredData = [];
+                for(let i = 0; i < data.value.length; i++){
+                    powerPredData[i] = [ (new Date(data.value[i][0])).getTime(), data.value[i][1]];
+                }
+                values.power = powerPredData;
+                updateProdPredNow(data.value);
             }
             else if(data.type == "pred"){
-                values.predLoad = data.value;
+                let loadPredData = [];
+                for(let i = 0; i < data.value.length; i++){
+                    loadPredData[i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, data.value[i]];
+                }
+                values.predLoad = loadPredData;
                 updatePredNow(data.value);
-                d = {
-                    msgType: "predUpdate",
-                    value: data.value
-                };
-                sockets.forEach(function(s){
-                    if (s != socket){
-                        s.send(JSON.stringify(d));
-                    }
-                });
+                // d = {
+                //     msgType: "predUpdate",
+                //     value: data.value
+                // };
+                // sockets.forEach(function(s){
+                //     if (s != socket){
+                //         s.send(JSON.stringify(d));
+                //     }
+                // });
             }
             else{
                 console.log(`msg: ${msg}`);

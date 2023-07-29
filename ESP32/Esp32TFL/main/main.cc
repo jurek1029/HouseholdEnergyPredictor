@@ -8,12 +8,15 @@
 
 #include "esp_log.h"
 
-const char capacity[] = "5";
-const char tilt[] = "42";
-const char azimuth[] = "180";
-const char hours[] = "12";
-const char lat[] = "-33.856784";
-const char lon[] = "151.215297";
+//Default BackupValues
+// char capacity[] = "5";
+// char tilt[] = "42";
+// char azimuth[] = "180";
+// char hours[] = "12";
+// char lat[] = "-33.856784";
+// char lon[] = "151.215297";
+// char webServer[] = "api.solcast.com.au";
+// char apiKey[] = "q_m_SaOSVkHui2bOMrGgzY6T68TbEpN7";
 
 void setupLogsLevels(){
  	esp_log_level_set("*", ESP_LOG_INFO);
@@ -34,12 +37,14 @@ void setup(){
    	setupLogsLevels();
 
 	solcast::setupSolCastApi();
-	std::unique_ptr<solcast::Data> pData = solcast::requestForecastData(
-		solcast::SolcastApiData(lat,lon,capacity,tilt,azimuth,hours));
 
-    LoadPrediction::setupTFLiteLoadPrediction();
-    float in[4*40] = {0};
-    auto outData = LoadPrediction::invokeModel(in);
+  //solcastData = new solcast::SolcastApiData(webServer,apiKey,lat,lon,capacity,tilt,azimuth,hours);
+  std::unique_ptr<solcast::Data> pData = solcast::requestForecastData();
+
+   LoadPrediction::setupTFLiteLoadPrediction();
+   float in[4*40] = {0};
+   auto outData = LoadPrediction::invokeModel(in);
+
 	printData(*pData);
 }
 

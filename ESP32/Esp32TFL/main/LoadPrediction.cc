@@ -14,6 +14,8 @@
 #include "WebSocket.h"
 // #include "WiFi.h"
 
+#include "NVStorageHelper.h"
+
 #include <stdio.h>
 #include "esp_system.h"
 #include "nvs_flash.h"
@@ -40,53 +42,54 @@ namespace LoadPrediction{
     TfLiteTensor* output = nullptr;
     int inputSize = 1;
     int outputSize = 1;
+    bool bInitialized = false;
 
     constexpr int kTensorArenaSize = 8000;
     uint8_t tensor_arena[kTensorArenaSize];
 
     ExpSmoothing expSmoothing;
 
-    float pastEnergyValues[INPUT_LEN] = {0};
-    float pastExpSmoothValues[INPUT_LEN] = {0};
-    float pastTempValues[INPUT_LEN] = {0};
-    float pastWeekPercValues[INPUT_LEN] = {0};
+    float* pastEnergyValues = new float[INPUT_LEN];// = {0};
+    float* pastExpSmoothValues = new float[INPUT_LEN] ;//= {0};
+    float* pastTempValues = new float[INPUT_LEN];// = {0};
+    float* pastWeekPercValues = new float[INPUT_LEN];// = {0};
 
-    esp_err_t loadValuesFromNVS(const char* name, void* value){  
-        nvs_handle_t  handle;
-        esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
-        if (err != ESP_OK) return err;
+    // esp_err_t loadValuesFromNVS(const char* name, void* value){  
+    //     nvs_handle_t  handle;
+    //     esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
+    //     if (err != ESP_OK) return err;
 
-        size_t required_size = 0; 
-        err = nvs_get_blob(handle, name, NULL, &required_size);
-        if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
+    //     size_t required_size = 0; 
+    //     err = nvs_get_blob(handle, name, NULL, &required_size);
+    //     if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND) return err;
 
-        if (required_size > 0) {
-            printf("req size: %s", name);
-            err = nvs_get_blob(handle, name, value, &required_size);
-            if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
-                return err;  
-            } 
-        }
-        nvs_close(handle);
-        return ESP_OK;
-    }
+    //     if (required_size > 0) {
+    //         printf("req size: %s", name);
+    //         err = nvs_get_blob(handle, name, value, &required_size);
+    //         if (err != ESP_OK && err != ESP_ERR_NVS_NOT_FOUND){
+    //             return err;  
+    //         } 
+    //     }
+    //     nvs_close(handle);
+    //     return ESP_OK;
+    // }
 
-    esp_err_t saveValuesToNVS(const char* name, size_t required_size, void* value){
-        nvs_handle_t  handle;
-        esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
-        if (err != ESP_OK) return err;
+    // esp_err_t saveValuesToNVS(const char* name, size_t required_size, void* value){
+    //     nvs_handle_t  handle;
+    //     esp_err_t err = nvs_open(STORAGE_NAMESPACE, NVS_READWRITE, &handle);
+    //     if (err != ESP_OK) return err;
         
-        err = nvs_set_blob(handle, name, value, required_size);
-        if (err != ESP_OK) return err;
+    //     err = nvs_set_blob(handle, name, value, required_size);
+    //     if (err != ESP_OK) return err;
 
-        // Commit
-        err = nvs_commit(handle);
-        if (err != ESP_OK) return err;
+    //     // Commit
+    //     err = nvs_commit(handle);
+    //     if (err != ESP_OK) return err;
 
-        // Close
-        nvs_close(handle);
-        return ESP_OK;
-    }
+    //     // Close
+    //     nvs_close(handle);
+    //     return ESP_OK;
+    // }
 
     void moveValuesToPast(){
         for(int i = 1; i < INPUT_LEN; i ++){
@@ -98,10 +101,10 @@ namespace LoadPrediction{
     }
 
     void saveAllValues(){
-        saveValuesToNVS("energy_values",sizeof(pastEnergyValues) ,pastEnergyValues);
-        saveValuesToNVS("exp_values", sizeof(pastExpSmoothValues), pastExpSmoothValues);
-        saveValuesToNVS("temp_values", sizeof(pastTempValues), pastTempValues);
-        saveValuesToNVS("week_values",sizeof(pastWeekPercValues), pastWeekPercValues);
+        NVStorageHelper::saveValuesToNVS("energy_values",sizeof(pastEnergyValues) * INPUT_LEN  ,pastEnergyValues);
+        NVStorageHelper::saveValuesToNVS("exp_values", sizeof(pastExpSmoothValues) * INPUT_LEN, pastExpSmoothValues);
+        NVStorageHelper::saveValuesToNVS("temp_values", sizeof(pastTempValues) * INPUT_LEN, pastTempValues);
+        NVStorageHelper::saveValuesToNVS("week_values",sizeof(pastWeekPercValues) * INPUT_LEN, pastWeekPercValues);
         expSmoothing.saveAll();
         #ifdef DEBUG_PRINT_LOGS
         printf("LoadPrediction Saving Values \n");
@@ -162,10 +165,10 @@ namespace LoadPrediction{
         // std::fill_n(pastExpSmoothValues,INPUT_LEN,1);
         // std::fill_n(pastTempValues,INPUT_LEN,2);
         // std::fill_n(pastWeekPercValues,INPUT_LEN,3);
-        loadValuesFromNVS("energy_values", pastEnergyValues);
-        loadValuesFromNVS("exp_values", pastExpSmoothValues);
-        loadValuesFromNVS("temp_values", pastTempValues);
-        loadValuesFromNVS("week_values", pastWeekPercValues);
+        NVStorageHelper::loadValuesFromNVS("energy_values", pastEnergyValues);
+        NVStorageHelper::loadValuesFromNVS("exp_values", pastExpSmoothValues);
+        NVStorageHelper::loadValuesFromNVS("temp_values", pastTempValues);
+        NVStorageHelper::loadValuesFromNVS("week_values", pastWeekPercValues);
 
         #ifdef DEBUG_PRINT_LOGS
         for(int i = 0; i < INPUT_LEN; i++){
@@ -180,9 +183,12 @@ namespace LoadPrediction{
         NTPTime::setupNTPTime();
         websocket::setupWebSocket(&webSocketMessageHandler);
         websocket::openWebSocket();
+
+        bInitialized = true;
     }
 
     std::shared_ptr<float[]> invokeModel(float* inputData){
+        if(!bInitialized) return nullptr;
         for(int i = 0; i < inputSize; i ++){
             input->data.int8[i] = inputData[i] / input->params.scale + input->params.zero_point;
             //input->data.f[i] = float(1.);
@@ -275,7 +281,7 @@ namespace LoadPrediction{
     }
 
     std::shared_ptr<float[]> predictNextLoad(){
-
+        if(!bInitialized) return nullptr; 
         moveValuesToPast();
 
         // TODO Read real power demand in kWh

@@ -13,6 +13,7 @@ var PREDCTION_LEN = 16;
 var AGREGATE_IN = 3;
 
 var predChartData = [];
+var predPowerChartData = [];
 
 function setupBackgroudVideo(){
     var video = document.createElement('video');
@@ -124,7 +125,7 @@ function onMessage(event) {
             document.getElementById('temp').innerHTML = data.temp.toFixed(2);
             document.getElementById('humi').innerHTML = data.humi;
             
-            console.log(Object.keys(data));
+            //console.log(Object.keys(data));
 
             if(chartTNow.series[0].data.length > 2000) {
                 chartTNow.series[0].addPoint([(new Date()).getTime(), data.temp], true, true, true);
@@ -137,32 +138,45 @@ function onMessage(event) {
             } else {
                 chartPNow.series[0].addPoint([(new Date()).getTime(), data.load], true, false, true);
             }
-
-            if(chartPPredNow.series[0].data.length > 2000) {
-                chartPPredNow.series[0].addPoint([(new Date()).getTime(), data.power[0]], true, true, true);
-            } else {
-                chartPPredNow.series[0].addPoint([(new Date()).getTime(), data.power[0]], true, false, true);
+            
+            // Update Load prediction 
+            let len = chartPPMonth.series[0].data.length;
+            if(len > 2000){ //rotate if too many points so they will not by overwriten
+                predChartData.shift();
             }
+            let baseStart = Math.max(len - data.power.length + 1 ,0);
+            for(var i = 0; i < data.predLoad.length; i++){ //update last values leaving one old and adding one new
+                predChartData[baseStart + i] = data.predLoad[i];
+            }
+            chartPPMonth.series[0].setData(predChartData);
+
+            // Update Power prediction
+            len = chartPPredNow.series[0].data.length;
+            if(len > 2000){ //rotate if too many points so they will not by overwriten
+                predPowerChartData.shift();
+            }
+            baseStart = Math.max(len - data.power.length + 1 ,0);
+            for(var i = 0; i < data.power.length; i++){ //update last values leaving one old and adding one new
+                predPowerChartData[baseStart + i] = data.power[i];
+            }
+            chartPPredNow.series[0].setData(predPowerChartData);
         }
         else if(data.msgType == "getPastValues"){
             console.log("loadingData");
             chartTNow.series[0].setData(data.tempNow);
             chartPNow.series[0].setData(data.loadNow);
-            console.log(data.tempMonth)
             chartTMonth.series[0].setData(data.tempMonth);
             chartPMonth.series[0].setData(data.loadMonth);
-            predChartData = data.predNow;
             chartPPMonth.series[0].setData(data.predNow);
-            console.log(data.powerNow);
             chartPPredNow.series[0].setData(data.powerNow);
         }
-        else if(data.msgType == "predUpdate"){
-            let len = chartPPMonth.series[0].data.length;
-            for(var i = 0; i < PREDCTION_LEN; i++){
-                predChartData[len - PREDCTION_LEN + 1 + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, data.value[i]];
-            }
-            chartPPMonth.series[0].setData(predChartData);
-        }
+        // else if(data.msgType == "predUpdate"){
+        //     let len = chartPPMonth.series[0].data.length;
+        //     for(var i = 0; i < PREDCTION_LEN; i++){
+        //         predChartData[len - PREDCTION_LEN + 1 + i] = [(new Date()).getTime() + 1000*60*60*AGREGATE_IN*i, data.value[i]];
+        //     }
+        //     chartPPMonth.series[0].setData(predChartData);
+        // }
         else if(data.msgType == "updateModelConsts"){
             PREDCTION_LEN = data.predLen;
             AGREGATE_IN = data.agreg;

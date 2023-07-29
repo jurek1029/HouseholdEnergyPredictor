@@ -1,0 +1,9 @@
+{
+    "msgType": "getPastValues",
+    "tempNow": [],
+    "tempMonth": [],
+    "loadNow": [],
+    "loadMonth": [],
+    "predNow": [],
+    "powerNow": []
+}

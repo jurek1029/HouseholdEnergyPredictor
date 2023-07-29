@@ -26,7 +26,13 @@ namespace request{
         std::unique_ptr<char> url;
         std::unique_ptr<char> headers;
         UrlData() {};
-        //UrlData(const char* _url, const char* _headers): url(_url), headers(_headers){};
+        UrlData(char* _url, char* _headers){
+            url = std::unique_ptr<char>(new char[strlen(_url) + 1]);
+            strcpy(url.get(),_url);
+
+            headers = std::unique_ptr<char>(new char[strlen(_headers) + 1]);
+            strcpy(headers.get(),_headers);
+        };
         UrlData(std::unique_ptr<char> &_url, std::unique_ptr<char> &_headers): 
         url(move(_url)), headers(move(_headers)){};
     };
